@@ -1,5 +1,5 @@
 #                                                                        #
-# Security policy for the Neos package                             #
+# Security policy for the Neos package                                   #
 #                                                                        #
 
 privilegeTargets:
@@ -77,12 +77,6 @@ privilegeTargets:
 
     'TYPO3.Neos:Backend.Module.Management.History':
       matcher: 'method(TYPO3\Neos\Controller\Module\Management\HistoryController->(index)Action())'
-
-    'TYPO3.Neos:Backend.Module.Media.ManageAssets':
-      matcher: 'method(TYPO3\Neos\Controller\(Module\Management\Asset|Backend\MediaBrowser|Backend\ImageBrowser)Controller->(index|new|edit|update|initializeCreate|create|initializeUpload|upload|tagAsset|delete|createTag|editTag|updateTag|deleteTag|addAssetToCollection)Action())'
-
-    'TYPO3.Neos:Backend.Module.Media.ManageAssetCollections':
-      matcher: 'method(TYPO3\Neos\Controller\(Module\Management\Asset|Backend\MediaBrowser|Backend\ImageBrowser)Controller->(createAssetCollection|editAssetCollection|updateAssetCollection|deleteAssetCollection)Action())'
 
     'TYPO3.Neos:Backend.Module.Administration':
       matcher: 'method(TYPO3\Neos\Controller\Module\AdministrationController->indexAction())'
@@ -167,14 +161,6 @@ roles:
         permission: GRANT
 
       -
-        privilegeTarget: 'TYPO3.Media:ManageAssets'
-        permission: GRANT
-
-      -
-        privilegeTarget: 'TYPO3.Neos:Backend.Module.Media.ManageAssets'
-        permission: GRANT
-
-      -
         privilegeTarget: 'TYPO3.Neos:Backend.Module.User'
         permission: GRANT
 
@@ -227,12 +213,4 @@ roles:
 
       -
         privilegeTarget: 'TYPO3.Neos:Backend.Module.Administration.Configuration'
-        permission: GRANT
-
-      -
-        privilegeTarget: 'TYPO3.Media:ManageAssetCollections'
-        permission: GRANT
-
-      -
-        privilegeTarget: 'TYPO3.Neos:Backend.Module.Media.ManageAssetCollections'
         permission: GRANT

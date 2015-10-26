@@ -5,7 +5,7 @@
     "description": "An open source Content Application Platform based on Flow. A set of core Content Management features is resting within a larger context that allows you to build a perfectly customized experience for your users.",
     "require": {
         "typo3/flow": "*",
-        "typo3/media": "*",
+        "neos/mediabrowser": "*",
         "typo3/party": "*",
         "typo3/setup": "*",
         "typo3/twitter-bootstrap": "*",
