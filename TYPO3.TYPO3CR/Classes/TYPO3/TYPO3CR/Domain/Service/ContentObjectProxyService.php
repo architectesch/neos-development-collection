@@ -63,6 +63,8 @@ class ContentObjectProxyService
         $this->withoutSynchronization(function () use ($contentObject, $propertyName, $newValue) {
             ObjectAccess::setProperty($contentObject, $propertyName, $newValue);
             $this->persistenceManager->update($contentObject);
+            $this->persistenceManager->whitelistObject($contentObject);
+            $this->persistenceManager->persistAll(true);
         });
     }
 
