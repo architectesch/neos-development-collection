@@ -46,6 +46,9 @@ TYPO3:
     persistence:
       doctrine:
         eventListeners:
+          'TYPO3\TYPO3CR\Domain\Service\ContentObjectProxyService':
+            events: ['postUpdate']
+            listener: 'TYPO3\TYPO3CR\Domain\Service\ContentObjectProxyService'
           'Gedmo\Timestampable\TimestampableListener':
             events: ['prePersist', 'onFlush', 'loadClassMetadata']
             listener: 'Gedmo\Timestampable\TimestampableListener'

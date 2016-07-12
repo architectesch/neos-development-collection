@@ -11,6 +11,7 @@ namespace TYPO3\TYPO3CR\Domain\Repository;
  * source code.
  */
 
+use Doctrine\ORM\Internal\Hydration\IterableResult;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use TYPO3\Flow\Annotations as Flow;
@@ -1436,6 +1437,39 @@ class NodeDataRepository extends Repository
         $possibleNodeData = $queryBuilder->getQuery()->getResult();
 
         return $possibleNodeData;
+    }
+
+    /**
+     * @param string $identifier
+     * @return \Generator
+     */
+    public function findByContentObjectProxy($identifier)
+    {
+        /** @var QueryBuilder $queryBuilder */
+        $queryBuilder = $this->entityManager->createQueryBuilder();
+
+        $queryBuilder->select('n')
+            ->from('TYPO3\TYPO3CR\Domain\Model\NodeData', 'n')
+            ->join('n.contentObjectProxy', 'c')
+            ->where('c.targetId = :identifier');
+
+        $queryBuilder->setParameter('identifier', $identifier);
+
+        return $this->iterate($queryBuilder->getQuery()->iterate());
+    }
+
+    /**
+     * Iterator over an IterableResult and return a Generator
+     *
+     * @param IterableResult $iterator
+     * @return \Generator
+     */
+    protected function iterate(IterableResult $iterator)
+    {
+        foreach ($iterator as $object) {
+            $object = current($object);
+            yield $object;
+        }
     }
 
     /**

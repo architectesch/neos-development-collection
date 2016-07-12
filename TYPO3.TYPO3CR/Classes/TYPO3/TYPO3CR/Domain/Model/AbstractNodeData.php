@@ -168,17 +168,6 @@ abstract class AbstractNodeData
 
         $this->persistRelatedEntities($value);
 
-        $contentObject = $this->getContentObject();
-        if ($contentObject !== null && ObjectAccess::isPropertySettable($contentObject, $propertyName)) {
-            if (ObjectAccess::getProperty($contentObject, $propertyName) === $value) {
-                return;
-            }
-
-            ObjectAccess::setProperty($contentObject, $propertyName, $value);
-            $this->updateContentObject($contentObject);
-            return;
-        }
-
         if (isset($this->properties[$propertyName]) && $this->properties[$propertyName] === $value) {
             return;
         }
@@ -216,10 +205,6 @@ abstract class AbstractNodeData
      */
     public function hasProperty($propertyName)
     {
-        $contentObject = $this->getContentObject();
-        if ($contentObject && ObjectAccess::isPropertyGettable($contentObject, $propertyName)) {
-            return true;
-        }
         return isset($this->properties[$propertyName]);
     }
 
@@ -235,10 +220,6 @@ abstract class AbstractNodeData
      */
     public function getProperty($propertyName)
     {
-        $contentObject = $this->getContentObject();
-        if ($contentObject && ObjectAccess::isPropertyGettable($contentObject, $propertyName)) {
-            return ObjectAccess::getProperty($this->getContentObject(), $propertyName);
-        }
         $value = isset($this->properties[$propertyName]) ? $this->properties[$propertyName] : null;
         if (!empty($value)) {
             if ($this->getNodeType()->getPropertyType($propertyName) === 'references') {
@@ -263,7 +244,7 @@ abstract class AbstractNodeData
      */
     public function removeProperty($propertyName)
     {
-        if ($this->getContentObject() === null) {
+        if ($this->getContentObject() === null || !$this->contentObjectProxy->hasProperty($propertyName)) {
             if (isset($this->properties[$propertyName])) {
                 unset($this->properties[$propertyName]);
                 $this->addOrUpdate();
@@ -287,9 +268,6 @@ abstract class AbstractNodeData
         foreach (array_keys($this->properties) as $propertyName) {
             $properties[$propertyName] = $this->getProperty($propertyName);
         }
-        if ($this->getContentObject()) {
-            $properties = Arrays::arrayMergeRecursiveOverrule($properties, ObjectAccess::getGettableProperties($this->getContentObject()));
-        }
         return $properties;
     }
 
@@ -301,9 +279,6 @@ abstract class AbstractNodeData
     public function getPropertyNames()
     {
         $propertyNames = array_keys($this->properties);
-        if ($this->getContentObject()) {
-            $propertyNames = array_merge($propertyNames, ObjectAccess::getGettablePropertyNames($this->getContentObject()));
-        }
         return $propertyNames;
     }
 
@@ -539,17 +514,6 @@ abstract class AbstractNodeData
      * @return void
      */
     protected function addOrUpdate()
-    {
-    }
-
-    /**
-     * By default this method does not do anything.
-     * For persisted nodes (PersistedNodeInterface) this updates the content object via the PersistenceManager
-     *
-     * @param object $contentObject
-     * @return void
-     */
-    protected function updateContentObject($contentObject)
     {
     }
 
