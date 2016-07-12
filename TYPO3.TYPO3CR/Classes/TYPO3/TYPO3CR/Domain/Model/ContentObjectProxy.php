@@ -12,6 +12,7 @@ namespace TYPO3\TYPO3CR\Domain\Model;
  */
 
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Flow\Reflection\ObjectAccess;
 
 /**
  * A Content Object Proxy object to connect domain models to nodes
@@ -81,6 +82,15 @@ class ContentObjectProxy
                 }
             }
         }
+    }
+
+    /**
+     * @param string $propertyName
+     * @return boolean
+     */
+    public function hasProperty($propertyName)
+    {
+        return ObjectAccess::isPropertyGettable($this->getObject(), $propertyName);
     }
 
     /**

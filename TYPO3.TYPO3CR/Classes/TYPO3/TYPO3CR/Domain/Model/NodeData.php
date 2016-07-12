@@ -995,17 +995,6 @@ class NodeData extends AbstractNodeData
     }
 
     /**
-     * Updates the attached content object
-     *
-     * @param object $contentObject
-     * @return void
-     */
-    protected function updateContentObject($contentObject)
-    {
-        $this->persistenceManager->update($contentObject);
-    }
-
-    /**
      * Calculates the hash corresponding to the path of this instance.
      *
      * @return void
