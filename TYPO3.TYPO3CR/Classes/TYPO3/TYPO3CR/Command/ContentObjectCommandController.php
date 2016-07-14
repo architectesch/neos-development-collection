@@ -69,12 +69,13 @@ class ContentObjectCommandController extends CommandController
             }
             $result = [
                 $node->getPath(),
+                $node->getWorkspace()->getName(),
                 $node->getIdentifier()
             ];
             if ($updated) {
-                $this->outputLine('<info>++</info> node updated %s (%s)', $result);
+                $this->outputLine('<info>++</info> node updated %s in workspace %s (%s)', $result);
             } else {
-                $this->outputLine('<comment>~~</comment> node skipped %s (%s)', $result);
+                $this->outputLine('<comment>~~</comment> node skipped %s in workspace %s (%s)', $result);
             }
         });
     }
