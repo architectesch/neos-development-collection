@@ -100,9 +100,9 @@ class ContentProxyableEntityService
      * @param string $className
      * @return IterableResult
      */
-    public function findAll($className)
+    public function findAllByClassName($className)
     {
-        return $this->contentProxyProxyableRepository->findAll($className);
+        return $this->contentProxyProxyableRepository->findAllByClassname($className);
     }
 
     /**
@@ -112,33 +112,56 @@ class ContentProxyableEntityService
      * @param Context $context
      * @param \Closure $callback
      */
-    public function synchronizeAll($className, Context $context, \Closure $callback = null)
+    public function synchronizeAllByClassName($className, Context $context, \Closure $callback = null)
     {
-        foreach ($this->contentProxyProxyableRepository->findAll($className) as $entity) {
-            $accessibleProperty = ObjectAccess::getGettableProperties($entity);
-            $identifier = $this->persistenceManager->getIdentifierByObject($entity);
-            $nodeCounter = $updatedNodeCounter = 0;
-
-            foreach ($this->findProxyNodesByIdentifier($identifier, $context) as $nodeData) {
-                $node = $this->nodeFactory->createFromNodeData($nodeData, $context);
-                $updated = $this->synchronize($node, $accessibleProperty, $className, $context);
-                if ($callback !== null) {
-                    $callback($node, $entity, $updated);
-                }
-                if ($updated === true) {
-                    $updatedNodeCounter++;
-                }
-                $nodeCounter++;
-            }
-
-            $message = vsprintf('module=content-object-proxy action=entity-synchronized type=%s identifier=%s node-updated=%d node-processed=%s', [
-                $className,
-                $identifier,
-                $updatedNodeCounter,
-                $nodeCounter
-            ]);
-            $this->logger->log($message, LOG_NOTICE);
+        foreach ($this->contentProxyProxyableRepository->findAllByClassname($className) as $entity) {
+            $data = ObjectAccess::getGettableProperties($entity);
+            $this->synchronizeObject($entity, $data, $context, $callback);
         }
+    }
+
+    /**
+     * @param object $entity
+     * @param array $data
+     * @param Context $context
+     * @param \Closure|null $callback
+     */
+    public function synchronizeAllByObject($entity, $data, Context $context, \Closure $callback = null)
+    {
+        $this->synchronizeObject($entity, $data, $context, $callback);
+    }
+
+    /**
+     * @param object $entity
+     * @param array $data
+     * @param Context $context
+     * @param \Closure $callback
+     */
+    protected function synchronizeObject($entity, array $data, Context $context, \Closure $callback = null)
+    {
+        $identifier = $this->persistenceManager->getIdentifierByObject($entity);
+        $nodeCounter = $updatedNodeCounter = 0;
+        $className = get_class($entity);
+
+        foreach ($this->findProxyNodesByIdentifier($identifier, $context) as $nodeData) {
+            $node = $this->nodeFactory->createFromNodeData($nodeData, $context);
+            $updated = $this->synchronize($node, $data, $className, $context);
+            if ($callback !== null) {
+                $callback($node, $entity, $updated);
+            }
+            if ($updated === true) {
+                $updatedNodeCounter++;
+            }
+            $nodeCounter++;
+        }
+
+        $message = vsprintf('module=content-object-proxy action=entity-synchronized type=%s identifier=%s node-updated=%d node-processed=%s', [
+            $className,
+            $identifier,
+            $updatedNodeCounter,
+            $nodeCounter
+        ]);
+        $this->logger->log($message, LOG_NOTICE);
     }
 
     /**
