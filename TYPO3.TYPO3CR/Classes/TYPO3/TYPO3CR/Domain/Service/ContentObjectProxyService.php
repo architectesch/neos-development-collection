@@ -48,6 +48,11 @@ class ContentObjectProxyService
     protected $synchronizationDisabled = false;
 
     /**
+     * @var string
+     */
+    protected $workspace = 'live';
+
+    /**
      * Get node property changes and synchronize with doctrine entities
      *
      * @param NodeInterface $node
@@ -86,7 +91,25 @@ class ContentObjectProxyService
         if (!$entity instanceof ContentProxyProxyableEntityInterface) {
             return;
         }
-        $this->contentProxyableEntityService->synchronizeAll(get_class($entity), $this->createContentContext('live'));
+        $this->contentProxyableEntityService->synchronizeAllByObject($entity, ObjectAccess::getGettableProperties($entity), $this->createContentContext($this->workspace));
+    }
+
+    /**
+     * @param string $workspaceName
+     * @param \Closure $callback
+     * @throws \Exception
+     */
+    public function inWorkspace($workspaceName, \Closure $callback) {
+        $previousWorkspaceName = $this->workspace;
+        $this->workspace = $workspaceName;
+        try {
+            /** @noinspection PhpUndefinedMethodInspection */
+            $callback->__invoke();
+        } catch (\Exception $exception) {
+            throw $exception;
+        } finally {
+            $this->workspace = $previousWorkspaceName;
+        }
     }
 
     /**
