@@ -48,7 +48,7 @@ class ContentObjectProxyService
     protected $synchronizationDisabled = false;
 
     /**
-     * Get node property change and synchronize with doctrine
+     * Get node property changes and synchronize with doctrine entities
      *
      * @param NodeInterface $node
      * @param string $propertyName name of the property that has been changed/added
