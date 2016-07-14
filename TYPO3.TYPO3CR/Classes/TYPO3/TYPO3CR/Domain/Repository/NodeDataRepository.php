@@ -1441,35 +1441,28 @@ class NodeDataRepository extends Repository
 
     /**
      * @param string $identifier
-     * @return \Generator
+     * @param Workspace $workspace
+     * @return array
      */
-    public function findByContentObjectProxy($identifier)
+    public function findByContentObjectProxy($identifier, Workspace $workspace)
     {
-        /** @var QueryBuilder $queryBuilder */
-        $queryBuilder = $this->entityManager->createQueryBuilder();
+        $workspaces = $this->collectWorkspaceAndAllBaseWorkspaces($workspace);
 
-        $queryBuilder->select('n')
-            ->from('TYPO3\TYPO3CR\Domain\Model\NodeData', 'n')
-            ->join('n.contentObjectProxy', 'c')
-            ->where('c.targetId = :identifier');
+        $queryBuilder = $this->createQueryBuilder($workspaces);
 
-        $queryBuilder->setParameter('identifier', $identifier);
+        $queryBuilder->join('n.contentObjectProxy', 'c')
+            ->andWhere('c.targetId = :identifier')
+            ->setParameter('identifier', $identifier);
 
-        return $this->iterate($queryBuilder->getQuery()->iterate());
-    }
+        $nodes = $queryBuilder->getQuery()->execute();
 
-    /**
-     * Iterator over an IterableResult and return a Generator
-     *
-     * @param IterableResult $iterator
-     * @return \Generator
-     */
-    protected function iterate(IterableResult $iterator)
-    {
-        foreach ($iterator as $object) {
-            $object = current($object);
-            yield $object;
-        }
+        $dimensions = [];
+
+        $foundNodes = $this->reduceNodeVariantsByWorkspacesAndDimensions($nodes, $workspaces, $dimensions);
+        $foundNodes = $this->filterNodeDataByBestMatchInContext($foundNodes, $workspaces[0], $dimensions);
+        $foundNodes = $this->filterRemovedNodes($foundNodes, false);
+
+        return $foundNodes;
     }
 
     /**
