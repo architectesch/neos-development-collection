@@ -48,6 +48,8 @@ class ContentObjectProxyService
     protected $synchronizationDisabled = false;
 
     /**
+     * Get node property change and synchronize with doctrine
+     *
      * @param NodeInterface $node
      * @param string $propertyName name of the property that has been changed/added
      * @param mixed $oldValue the property value before it was changed or NULL if the property is new
@@ -56,6 +58,9 @@ class ContentObjectProxyService
      */
     public function setProperty(NodeInterface $node, $propertyName, $oldValue, $newValue)
     {
+        if ($this->synchronizationDisabled === true) {
+            return;
+        }
         $contentObject = $node->getContentObject();
         if ($contentObject === null || !ObjectAccess::isPropertySettable($contentObject, $propertyName)) {
             return;
@@ -74,6 +79,9 @@ class ContentObjectProxyService
      */
     public function postUpdate(LifecycleEventArgs $eventArgs)
     {
+        if ($this->synchronizationDisabled === true) {
+            return;
+        }
         $entity = $eventArgs->getEntity();
         if (!$entity instanceof ContentProxyProxyableEntityInterface) {
             return;
