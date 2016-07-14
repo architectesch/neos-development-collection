@@ -11,6 +11,7 @@ namespace TYPO3\TYPO3CR\Domain\Service;
  * source code.
  */
 
+use Doctrine\ORM\Internal\Hydration\IterableResult;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Log\SystemLoggerInterface;
 use TYPO3\Flow\Object\ObjectManagerInterface;
@@ -93,6 +94,15 @@ class ContentProxyableEntityService
     public function findProxyNodesByIdentifier($identifier, Context $context)
     {
         return $this->nodeDataRepository->findByContentObjectProxy($identifier, $context->getWorkspace());
+    }
+
+    /**
+     * @param string $className
+     * @return IterableResult
+     */
+    public function findAll($className)
+    {
+        return $this->contentProxyProxyableRepository->findAll($className);
     }
 
     /**
