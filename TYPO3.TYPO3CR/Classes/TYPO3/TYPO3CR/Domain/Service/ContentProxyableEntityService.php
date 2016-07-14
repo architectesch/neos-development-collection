@@ -157,7 +157,7 @@ class ContentProxyableEntityService
 
             foreach ($accessibleProperty as $propertyName => $propertyValue) {
                 $currentValue = $node->getProperty($propertyName);
-                if ($node->hasProperty($propertyName) && $currentValue !== $propertyValue) {
+                if ($node->getNodeType()->hasConfiguration('properties.' . $propertyName) && $currentValue !== $propertyValue) {
                     if (isset($contentObjectProxyMapping[$propertyName])) {
                         $propertyName = $contentObjectProxyMapping[$propertyName];
                     }
