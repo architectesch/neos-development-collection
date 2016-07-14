@@ -87,11 +87,12 @@ class ContentProxyableEntityService
 
     /**
      * @param string $identifier
-     * @return \Generator
+     * @param Context $context
+     * @return array
      */
-    public function findProxyNodesByIdentifier($identifier)
+    public function findProxyNodesByIdentifier($identifier, Context $context)
     {
-        return $this->nodeDataRepository->findByContentObjectProxy($identifier);
+        return $this->nodeDataRepository->findByContentObjectProxy($identifier, $context->getWorkspace());
     }
 
     /**
@@ -108,7 +109,7 @@ class ContentProxyableEntityService
             $identifier = $this->persistenceManager->getIdentifierByObject($entity);
             $nodeCounter = $updatedNodeCounter = 0;
 
-            foreach ($this->nodeDataRepository->findByContentObjectProxy($identifier) as $nodeData) {
+            foreach ($this->findProxyNodesByIdentifier($identifier, $context) as $nodeData) {
                 $node = $this->nodeFactory->createFromNodeData($nodeData, $context);
                 $updated = $this->synchronize($node, $accessibleProperty, $className, $context);
                 if ($callback !== null) {
@@ -150,32 +151,32 @@ class ContentProxyableEntityService
             return $updated;
         }
 
-        $options = $node->getNodeType()->getOptions();
-        $contentObjectProxyMapping = Arrays::getValueByPath($options, ['contentObjectProxyMapping', $className]) ?: [];
+        $this->contentObjectProxyService->withoutSynchronization(function () use ($node, $accessibleProperty, $className, &$updated) {
+            $options = $node->getNodeType()->getOptions();
+            $contentObjectProxyMapping = Arrays::getValueByPath($options, ['contentObjectProxyMapping', $className]) ?: [];
 
-        foreach ($accessibleProperty as $propertyName => $propertyValue) {
-            $currentValue = $node->getProperty($propertyName);
-            if ($node->hasProperty($propertyName) && $currentValue !== $propertyValue) {
-                if (isset($contentObjectProxyMapping[$propertyName])) {
-                    $propertyName = $contentObjectProxyMapping[$propertyName];
-                }
+            foreach ($accessibleProperty as $propertyName => $propertyValue) {
+                $currentValue = $node->getProperty($propertyName);
+                if ($node->hasProperty($propertyName) && $currentValue !== $propertyValue) {
+                    if (isset($contentObjectProxyMapping[$propertyName])) {
+                        $propertyName = $contentObjectProxyMapping[$propertyName];
+                    }
 
-                $this->contentObjectProxyService->withoutSynchronization(function () use ($node, $propertyName, $propertyValue) {
                     $node->setProperty($propertyName, $propertyValue);
-                    $this->persistenceManager->persistAll();
-                });
 
-                $updated = true;
+                    $updated = true;
 
-                $message = vsprintf('module=content-object-proxy action=node-property-updated node=%s property-name=%s previous-value="%s" value="%s"', [
-                    $node->getIdentifier(),
-                    $propertyName,
-                    $currentValue,
-                    $propertyValue
-                ]);
-                $this->logger->log($message, LOG_NOTICE);
+                    $message = vsprintf('module=content-object-proxy action=node-property-updated node=%s property-name=%s previous-value="%s" value="%s"', [
+                        $node->getIdentifier(),
+                        $propertyName,
+                        $currentValue,
+                        $propertyValue
+                    ]);
+                    $this->logger->log($message, LOG_NOTICE);
+                }
             }
-        }
+            $this->persistenceManager->persistAll();
+        });
 
         $this->nodeFactory->reset();
         $context->getFirstLevelNodeCache()->flush();
