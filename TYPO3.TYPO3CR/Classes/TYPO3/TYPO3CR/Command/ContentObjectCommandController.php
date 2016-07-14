@@ -40,7 +40,7 @@ class ContentObjectCommandController extends CommandController
     protected $contentProxyableEntityService;
 
     /**
-     * Show a list of proxyable entities
+     * Show a list of proxyable Doctrine entities
      */
     public function typesCommand()
     {
@@ -53,6 +53,8 @@ class ContentObjectCommandController extends CommandController
     }
 
     /**
+     * Synchronize data from Doctrine entities to the content repository
+     *
      * @param string $type
      * @param string $workspace
      */
