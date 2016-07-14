@@ -32,17 +32,17 @@ class ContentProxyableRepository
     protected $entityManager;
 
     /**
-     * @param string $from
+     * @param string $className
      * @param \Closure $callback
      * @return IterableResult
      */
-    public function findAll($from, \Closure $callback = null)
+    public function findAllByClassname($className, \Closure $callback = null)
     {
         $queryBuilder = $this->getQueryBuilder();
 
         return $this->iterate($queryBuilder
             ->select('Entity')
-            ->from($from, 'Entity')
+            ->from($className, 'Entity')
             ->getQuery()->iterate(), $callback);
     }
 
