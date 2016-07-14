@@ -127,8 +127,6 @@ class ContentProxyableEntityService
                 $nodeCounter
             ]);
             $this->logger->log($message, LOG_NOTICE);
-
-            $this->persistenceManager->clearState();
         }
     }
 
@@ -180,7 +178,6 @@ class ContentProxyableEntityService
         }
 
         $this->nodeFactory->reset();
-
         $context->getFirstLevelNodeCache()->flush();
 
         return $updated;
