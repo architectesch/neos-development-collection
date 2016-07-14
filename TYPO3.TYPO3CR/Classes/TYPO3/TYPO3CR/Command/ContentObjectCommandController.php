@@ -62,7 +62,7 @@ class ContentObjectCommandController extends CommandController
     {
         $context = $this->createContentContext($workspace);
         $processedEntities = [];
-        $this->contentProxyableEntityService->synchronizeAll($type, $context, function (NodeInterface $node, $entity, $updated) use (&$processedEntities) {
+        $this->contentProxyableEntityService->synchronizeAllByClassName($type, $context, function (NodeInterface $node, $entity, $updated) use (&$processedEntities) {
             $identifier = $this->persistenceManager->getIdentifierByObject($entity);
             if (!isset($processedEntities[$identifier])) {
                 $processedEntities[$identifier] = true;
