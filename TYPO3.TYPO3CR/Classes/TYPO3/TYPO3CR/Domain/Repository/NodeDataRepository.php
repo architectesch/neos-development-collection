@@ -1442,9 +1442,10 @@ class NodeDataRepository extends Repository
     /**
      * @param string $identifier
      * @param Workspace $workspace
+     * @param array $dimensions
      * @return array
      */
-    public function findByContentObjectProxy($identifier, Workspace $workspace)
+    public function findByContentObjectProxy($identifier, Workspace $workspace, array $dimensions = null)
     {
         $workspaces = $this->collectWorkspaceAndAllBaseWorkspaces($workspace);
 
@@ -1456,7 +1457,11 @@ class NodeDataRepository extends Repository
 
         $nodes = $queryBuilder->getQuery()->execute();
 
-        $dimensions = [];
+        if ($dimensions !== null) {
+            $this->addDimensionJoinConstraintsToQueryBuilder($queryBuilder, $dimensions);
+        } else {
+            $dimensions = [];
+        }
 
         $foundNodes = $this->reduceNodeVariantsByWorkspacesAndDimensions($nodes, $workspaces, $dimensions);
         $foundNodes = $this->filterNodeDataByBestMatchInContext($foundNodes, $workspaces[0], $dimensions);
