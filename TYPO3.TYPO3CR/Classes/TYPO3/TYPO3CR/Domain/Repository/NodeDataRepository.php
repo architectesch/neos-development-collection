@@ -11,6 +11,7 @@ namespace TYPO3\TYPO3CR\Domain\Repository;
  * source code.
  */
 
+use Doctrine\ORM\Internal\Hydration\IterableResult;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use TYPO3\Flow\Annotations as Flow;
@@ -1436,6 +1437,37 @@ class NodeDataRepository extends Repository
         $possibleNodeData = $queryBuilder->getQuery()->getResult();
 
         return $possibleNodeData;
+    }
+
+    /**
+     * @param string $identifier
+     * @param Workspace $workspace
+     * @param array $dimensions
+     * @return array
+     */
+    public function findByContentObjectProxy($identifier, Workspace $workspace, array $dimensions = null)
+    {
+        $workspaces = $this->collectWorkspaceAndAllBaseWorkspaces($workspace);
+
+        $queryBuilder = $this->createQueryBuilder($workspaces);
+
+        $queryBuilder->join('n.contentObjectProxy', 'c')
+            ->andWhere('c.targetId = :identifier')
+            ->setParameter('identifier', $identifier);
+
+        $nodes = $queryBuilder->getQuery()->execute();
+
+        if ($dimensions !== null) {
+            $this->addDimensionJoinConstraintsToQueryBuilder($queryBuilder, $dimensions);
+        } else {
+            $dimensions = [];
+        }
+
+        $foundNodes = $this->reduceNodeVariantsByWorkspacesAndDimensions($nodes, $workspaces, $dimensions);
+        $foundNodes = $this->filterNodeDataByBestMatchInContext($foundNodes, $workspaces[0], $dimensions);
+        $foundNodes = $this->filterRemovedNodes($foundNodes, false);
+
+        return $foundNodes;
     }
 
     /**
