@@ -14,6 +14,7 @@ namespace TYPO3\TYPO3CR;
 use TYPO3\Flow\Configuration\ConfigurationManager;
 use TYPO3\Flow\Core\Booting\Sequence;
 use TYPO3\Flow\Core\Bootstrap;
+use TYPO3\Flow\Monitor\FileMonitor;
 use TYPO3\Flow\Package\Package as BasePackage;
 use TYPO3\Flow\Package\PackageManagerInterface;
 use TYPO3\Flow\Persistence\Doctrine\PersistenceManager;
@@ -56,7 +57,7 @@ class Package extends BasePackage
         if (!$context->isProduction()) {
             $dispatcher->connect(Sequence::class, 'afterInvokeStep', function ($step) use ($bootstrap) {
                 if ($step->getIdentifier() === 'typo3.flow:systemfilemonitor') {
-                    $nodeTypeConfigurationFileMonitor = \TYPO3\Flow\Monitor\FileMonitor::createFileMonitorAtBoot('TYPO3CR_NodeTypesConfiguration', $bootstrap);
+                    $nodeTypeConfigurationFileMonitor = FileMonitor::createFileMonitorAtBoot('TYPO3CR_NodeTypesConfiguration', $bootstrap);
                     $packageManager = $bootstrap->getEarlyInstance(PackageManagerInterface::class);
                     foreach ($packageManager->getActivePackages() as $packageKey => $package) {
                         if ($packageManager->isPackageFrozen($packageKey)) {

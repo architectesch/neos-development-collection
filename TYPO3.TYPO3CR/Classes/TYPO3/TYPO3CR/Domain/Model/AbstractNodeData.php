@@ -12,11 +12,16 @@ namespace TYPO3\TYPO3CR\Domain\Model;
  */
 
 use TYPO3\Flow\Persistence\Aspect\PersistenceMagicInterface;
+use TYPO3\Flow\Persistence\PersistenceManagerInterface;
 use TYPO3\Flow\Reflection\ObjectAccess;
 use TYPO3\Flow\Annotations as Flow;
 use Doctrine\ORM\Mapping as ORM;
 use TYPO3\Flow\Utility\Arrays;
 use TYPO3\Flow\Validation\Validator\UuidValidator;
+use TYPO3\TYPO3CR\Domain\Model\ContentObjectProxy;
+use TYPO3\TYPO3CR\Domain\Repository\NodeDataRepository;
+use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
+use TYPO3\TYPO3CR\Exception\NodeException;
 
 /**
  * Some NodeData (persisted or transient)
@@ -41,7 +46,7 @@ abstract class AbstractNodeData
     /**
      * An optional object which is used as a content container alternative to $properties
      *
-     * @var \TYPO3\TYPO3CR\Domain\Model\ContentObjectProxy
+     * @var ContentObjectProxy
      */
     protected $contentObjectProxy;
 
@@ -105,19 +110,19 @@ abstract class AbstractNodeData
 
     /**
      * @Flow\Inject
-     * @var \TYPO3\TYPO3CR\Domain\Repository\NodeDataRepository
+     * @var NodeDataRepository
      */
     protected $nodeDataRepository;
 
     /**
      * @Flow\Inject
-     * @var \TYPO3\Flow\Persistence\PersistenceManagerInterface
+     * @var PersistenceManagerInterface
      */
     protected $persistenceManager;
 
     /**
      * @Flow\Inject
-     * @var \TYPO3\TYPO3CR\Domain\Service\NodeTypeManager
+     * @var NodeTypeManager
      */
     protected $nodeTypeManager;
 
@@ -216,7 +221,7 @@ abstract class AbstractNodeData
      *
      * @param string $propertyName Name of the property
      * @return mixed value of the property
-     * @throws \TYPO3\TYPO3CR\Exception\NodeException if the content object exists but does not contain the specified property.
+     * @throws NodeException if the content object exists but does not contain the specified property.
      */
     public function getProperty($propertyName)
     {
@@ -239,7 +244,7 @@ abstract class AbstractNodeData
      *
      * @param string $propertyName Name of the property
      * @return void
-     * @throws \TYPO3\TYPO3CR\Exception\NodeException if the node does not contain the specified property
+     * @throws NodeException if the node does not contain the specified property
      * @todo check how to handle this in ContentObjectProxy
      */
     public function removeProperty($propertyName)
@@ -249,7 +254,7 @@ abstract class AbstractNodeData
                 unset($this->properties[$propertyName]);
                 $this->addOrUpdate();
             } else {
-                throw new \TYPO3\TYPO3CR\Exception\NodeException(sprintf('Cannot remove non-existing property "%s" from node.', $propertyName), 1344952312);
+                throw new NodeException(sprintf('Cannot remove non-existing property "%s" from node.', $propertyName), 1344952312);
             }
         }
     }

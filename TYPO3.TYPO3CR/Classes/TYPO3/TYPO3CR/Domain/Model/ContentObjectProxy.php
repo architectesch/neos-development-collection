@@ -13,6 +13,8 @@ namespace TYPO3\TYPO3CR\Domain\Model;
 
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Reflection\ObjectAccess;
+use TYPO3\Flow\Persistence\Exception\IllegalObjectTypeException;
+use TYPO3\Flow\Persistence\PersistenceManagerInterface;
 
 /**
  * A Content Object Proxy object to connect domain models to nodes
@@ -26,7 +28,7 @@ class ContentObjectProxy
 {
     /**
      * @Flow\Inject
-     * @var \TYPO3\Flow\Persistence\PersistenceManagerInterface
+     * @var PersistenceManagerInterface
      */
     protected $persistenceManager;
 
@@ -67,7 +69,7 @@ class ContentObjectProxy
      * fails, an exception is thrown.
      *
      * @return void
-     * @throws \TYPO3\Flow\Persistence\Exception\IllegalObjectTypeException
+     * @throws IllegalObjectTypeException
      */
     protected function initializeObject()
     {
@@ -78,7 +80,7 @@ class ContentObjectProxy
                 $this->persistenceManager->persistAll();
                 $this->targetId = $this->persistenceManager->getIdentifierByObject($this->contentObject);
                 if ($this->targetId === null) {
-                    throw new \TYPO3\Flow\Persistence\Exception\IllegalObjectTypeException('You cannot add an object without an identifier to a ContentObjectProxy. Probably you didn\'t add a valid entity?', 1303859434);
+                    throw new IllegalObjectTypeException('You cannot add an object without an identifier to a ContentObjectProxy. Probably you didn\'t add a valid entity?', 1303859434);
                 }
             }
         }
