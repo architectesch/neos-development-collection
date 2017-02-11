@@ -270,11 +270,14 @@ abstract class AbstractNodeData
      *
      * @return array Property values, indexed by their name
      */
-    public function getProperties($returnNodesAsIdentifiers = false, \TYPO3\TYPO3CR\Domain\Service\Context $context = null)
+    public function getProperties()
     {
         $properties = array();
         foreach (array_keys($this->properties) as $propertyName) {
             $properties[$propertyName] = $this->getProperty($propertyName);
+        }
+        if ($this->contentObjectProxy !== null) {
+            $properties = array_merge($properties, $this->contentObjectProxy->getProperties());
         }
         return $properties;
     }
@@ -287,6 +290,9 @@ abstract class AbstractNodeData
     public function getPropertyNames()
     {
         $propertyNames = array_keys($this->properties);
+        if ($this->contentObjectProxy !== null) {
+            $propertyNames = array_merge($propertyNames, $this->contentObjectProxy->getPropertyNames());
+        }
         return $propertyNames;
     }
 
@@ -304,6 +310,12 @@ abstract class AbstractNodeData
         }
         if ($this->getContentObject() !== $contentObject) {
             $this->contentObjectProxy = new ContentObjectProxy($contentObject);
+            foreach ($this->contentObjectProxy->getProperties() as $propertyName => $propertyValue) {
+                if (!$this->getNodeType()->getConfiguration('properties.' . $propertyName)) {
+                    continue;
+                }
+                $this->setProperty($propertyName, $propertyValue);
+            }
             $this->addOrUpdate();
         }
     }
