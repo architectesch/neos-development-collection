@@ -293,7 +293,10 @@ class NodeDataTest extends UnitTestCase
         $this->assertEquals('My Body', $this->nodeData->getProperty('body'));
         $this->assertEquals('My Title', $this->nodeData->getProperty('title'));
 
-        $this->assertEquals(array('title' => 'My Title', 'body' => 'My Body'), $this->nodeData->getProperties());
+        $this->assertEquals([
+            'title' => 'My Title',
+            'body' => 'My Body'
+        ], $this->nodeData->getProperties());
 
         $actualPropertyNames = $this->nodeData->getPropertyNames();
         sort($actualPropertyNames);
@@ -304,24 +307,6 @@ class NodeDataTest extends UnitTestCase
 
         $this->assertEquals('My Other Body', $this->nodeData->getProperty('body'));
         $this->assertEquals('My Other Title', $this->nodeData->getProperty('title'));
-    }
-
-    /**
-     * @test
-     * @expectedException \TYPO3\TYPO3CR\Exception\NodeException
-     */
-    public function getPropertyThrowsAnExceptionIfTheSpecifiedPropertyDoesNotExistInTheContentObject()
-    {
-        $className = uniqid('Test');
-        eval('
-			class ' .$className . ' {
-				public $title = "My Title";
-			}
-		');
-        $contentObject = new $className;
-        $this->nodeData->setContentObject($contentObject);
-
-        $this->nodeData->getProperty('foo');
     }
 
     /**
