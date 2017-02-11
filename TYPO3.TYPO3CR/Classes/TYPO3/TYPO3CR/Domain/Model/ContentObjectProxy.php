@@ -96,6 +96,31 @@ class ContentObjectProxy
     }
 
     /**
+     * @param string $propertyName
+     * @return boolean
+     */
+    public function getProperty($propertyName)
+    {
+        return ObjectAccess::getProperty($this->getObject(), $propertyName);
+    }
+
+    /**
+     * @return array
+     */
+    public function getProperties()
+    {
+        return ObjectAccess::getGettableProperties($this->getObject());
+    }
+
+    /**
+     * @return array
+     */
+    public function getPropertyNames()
+    {
+        return ObjectAccess::getGettablePropertyNames($this->getObject());
+    }
+
+    /**
      * Returns the real object this proxy stands for
      *
      * @return object The "content object" as it was originally passed to the constructor
