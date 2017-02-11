@@ -210,7 +210,7 @@ abstract class AbstractNodeData
      */
     public function hasProperty($propertyName)
     {
-        return isset($this->properties[$propertyName]);
+        return isset($this->properties[$propertyName]) || ($this->contentObjectProxy !== null && $this->contentObjectProxy->hasProperty($propertyName));
     }
 
     /**
