@@ -226,7 +226,7 @@ abstract class AbstractNodeData
     public function getProperty($propertyName)
     {
         $value = isset($this->properties[$propertyName]) ? $this->properties[$propertyName] : null;
-        if ($value === null && $this->contentObjectProxy !== null && $this->contentObjectProxy->hasProperty($propertyName)) {
+        if ($value === null && ($this->contentObjectProxy !== null && $this->contentObjectProxy->hasProperty($propertyName))) {
             $value = $this->contentObjectProxy->getProperty($propertyName);
         }
         if (!empty($value)) {

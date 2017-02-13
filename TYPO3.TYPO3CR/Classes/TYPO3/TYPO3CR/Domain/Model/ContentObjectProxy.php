@@ -12,6 +12,7 @@ namespace TYPO3\TYPO3CR\Domain\Model;
  */
 
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Flow\Exception;
 use TYPO3\Flow\Reflection\ObjectAccess;
 use TYPO3\Flow\Persistence\Exception\IllegalObjectTypeException;
 use TYPO3\Flow\Persistence\PersistenceManagerInterface;
@@ -92,15 +93,18 @@ class ContentObjectProxy
      */
     public function hasProperty($propertyName)
     {
+        $this->assertContentObject();
         return ObjectAccess::isPropertyGettable($this->getObject(), $propertyName);
     }
 
     /**
      * @param string $propertyName
-     * @return boolean
+     * @return bool
+     * @throws Exception
      */
     public function getProperty($propertyName)
     {
+        $this->assertContentObject();
         return ObjectAccess::getProperty($this->getObject(), $propertyName);
     }
 
@@ -109,6 +113,7 @@ class ContentObjectProxy
      */
     public function getProperties()
     {
+        $this->assertContentObject();
         return ObjectAccess::getGettableProperties($this->getObject());
     }
 
@@ -117,7 +122,18 @@ class ContentObjectProxy
      */
     public function getPropertyNames()
     {
+        $this->assertContentObject();
         return ObjectAccess::getGettablePropertyNames($this->getObject());
+    }
+
+    /**
+     * @throws Exception
+     */
+    protected function assertContentObject()
+    {
+        if ($this->getObject() === null) {
+            throw new Exception('Missing content object', 1487028422);
+        }
     }
 
     /**
