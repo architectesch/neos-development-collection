@@ -93,7 +93,9 @@ class ContentObjectProxy
      */
     public function hasProperty($propertyName)
     {
-        $this->assertContentObject();
+        if ($this->getObject() === null) {
+            return false;
+        }
         return ObjectAccess::isPropertyGettable($this->getObject(), $propertyName);
     }
 
@@ -104,7 +106,9 @@ class ContentObjectProxy
      */
     public function getProperty($propertyName)
     {
-        $this->assertContentObject();
+        if ($this->getObject() === null) {
+            return null;
+        }
         return ObjectAccess::getProperty($this->getObject(), $propertyName);
     }
 
@@ -113,7 +117,9 @@ class ContentObjectProxy
      */
     public function getProperties()
     {
-        $this->assertContentObject();
+        if ($this->getObject() === null) {
+            return [];
+        }
         return ObjectAccess::getGettableProperties($this->getObject());
     }
 
@@ -122,18 +128,10 @@ class ContentObjectProxy
      */
     public function getPropertyNames()
     {
-        $this->assertContentObject();
-        return ObjectAccess::getGettablePropertyNames($this->getObject());
-    }
-
-    /**
-     * @throws Exception
-     */
-    protected function assertContentObject()
-    {
         if ($this->getObject() === null) {
-            throw new Exception('Missing content object', 1487028422);
+            return [];
         }
+        return ObjectAccess::getGettablePropertyNames($this->getObject());
     }
 
     /**
