@@ -173,7 +173,7 @@ abstract class AbstractNodeData
 
         $this->persistRelatedEntities($value);
 
-        if (isset($this->properties[$propertyName]) && $this->properties[$propertyName] === $value) {
+        if (array_key_exists($propertyName, $this->properties) && $this->properties[$propertyName] === $value) {
             return;
         }
 
@@ -210,7 +210,7 @@ abstract class AbstractNodeData
      */
     public function hasProperty($propertyName)
     {
-        return isset($this->properties[$propertyName]) || ($this->contentObjectProxy !== null && $this->contentObjectProxy->hasProperty($propertyName));
+        return array_key_exists($propertyName, $this->properties) || ($this->contentObjectProxy !== null && $this->contentObjectProxy->hasProperty($propertyName));
     }
 
     /**
@@ -225,7 +225,7 @@ abstract class AbstractNodeData
      */
     public function getProperty($propertyName)
     {
-        $value = isset($this->properties[$propertyName]) ? $this->properties[$propertyName] : null;
+        $value = array_key_exists($propertyName, $this->properties) ? $this->properties[$propertyName] : null;
         if ($value === null && ($this->contentObjectProxy !== null && $this->contentObjectProxy->hasProperty($propertyName))) {
             $value = $this->contentObjectProxy->getProperty($propertyName);
         }
@@ -253,7 +253,7 @@ abstract class AbstractNodeData
     public function removeProperty($propertyName)
     {
         if ($this->getContentObject() === null || !$this->contentObjectProxy->hasProperty($propertyName)) {
-            if (isset($this->properties[$propertyName])) {
+            if (array_key_exists($propertyName, $this->properties)) {
                 unset($this->properties[$propertyName]);
                 $this->addOrUpdate();
             } else {
@@ -273,7 +273,7 @@ abstract class AbstractNodeData
     public function getProperties()
     {
         $properties = array();
-        foreach (array_keys($this->properties) as $propertyName) {
+        foreach ($this->properties as $propertyName => $propertyValue) {
             $properties[$propertyName] = $this->getProperty($propertyName);
         }
         if ($this->contentObjectProxy !== null) {
