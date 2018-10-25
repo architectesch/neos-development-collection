@@ -1,6 +1,6 @@
 |Travis Build Status| |Code Climate| |StyleCI| |Latest Stable Version| |License| |Docs| |API| |Slack| |Forum| |Issues| |Translate| |Twitter|
 
-.. |Travis Build Status| image:: https://travis-ci.org/neos/neos-development-collection.svg?branch=master
+.. |Travis Build Status| image:: https://travis-ci.org/neos/neos-development-collection.svg?branch=3.0
    :target: https://travis-ci.org/neos/neos-development-collection
 .. |Code Climate| image:: https://codeclimate.com/github/neos/neos-development-collection/badges/gpa.svg
    :target: https://codeclimate.com/github/neos/neos-development-collection
@@ -9,12 +9,12 @@
 .. |Latest Stable Version| image:: https://poser.pugx.org/neos/neos-development-collection/v/stable
    :target: https://packagist.org/packages/neos/neos-development-collection
 .. |License| image:: https://poser.pugx.org/neos/neos-development-collection/license
-   :target: https://packagist.org/packages/neos/neos-development-collection
-.. |Docs| image:: https://img.shields.io/badge/documentation-master-blue.svg
-   :target: https://neos.readthedocs.org/en/latest/
+   :target: https://raw.githubusercontent.com/neos/neos/master/LICENSE
+.. |Docs| image:: https://img.shields.io/badge/documentation-3.0-blue.svg
+   :target: https://neos.readthedocs.org/en/3.0/
    :alt: Documentation
-.. |API| image:: https://img.shields.io/badge/API%20docs-master-blue.svg
-   :target: http://neos.github.io/neos/master/
+.. |API| image:: https://img.shields.io/badge/API%20docs-3.0-blue.svg
+   :target: http://neos.github.io/neos/3.0/
    :alt: API Docs
 .. |Slack| image:: http://slack.neos.io/badge.svg
    :target: http://slack.neos.io
@@ -22,8 +22,8 @@
 .. |Forum| image:: https://img.shields.io/badge/forum-Discourse-39c6ff.svg
    :target: https://discuss.neos.io/
    :alt: Discussion Forum
-.. |Issues| image:: https://img.shields.io/badge/issues-Jira-39c6ff.svg
-   :target: https://jira.neos.io/browse/NEOS
+.. |Issues| image:: https://img.shields.io/github/issues/neos/neos-development-collection.svg
+   :target: https://github.com/neos/neos-development-collection/issues
    :alt: Issues
 .. |Translate| image:: https://img.shields.io/badge/translate-Crowdin-85ae52.svg
    :target: http://translate.neos.io/
