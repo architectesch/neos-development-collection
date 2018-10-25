@@ -14,13 +14,12 @@ namespace TYPO3\Neos\Tests\Unit\Routing;
 use TYPO3\Flow\Log\SystemLoggerInterface;
 use TYPO3\Flow\Security\Context as SecurityContext;
 use TYPO3\Flow\Tests\UnitTestCase;
-use TYPO3\Neos\Domain\Model\Domain;
+use TYPO3\Flow\Utility\Algorithms;
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\Neos\Domain\Repository\DomainRepository;
 use TYPO3\Neos\Domain\Repository\SiteRepository;
 use TYPO3\Neos\Domain\Service\ConfigurationContentDimensionPresetSource;
 use TYPO3\Neos\Domain\Service\ContentContext;
-use TYPO3\Neos\Routing\Exception\NoHomepageException;
 use TYPO3\Neos\Routing\FrontendNodeRoutePartHandler;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Model\NodeType;
@@ -133,12 +132,13 @@ class FrontendNodeRoutePartHandlerTest extends UnitTestCase
     public function contextPathsAndRequestPathsDataProvider()
     {
         return array(
-            array('/sites/examplecom@live;language=en_US', ''),
-            array('/sites/examplecom@user-robert;language=de_DE,en_US', 'de_global'),
-            array('/sites/examplecom/features@user-robert;language=de_DE,en_US', 'de_global/features'),
-            array('/sites/examplecom/features@user-robert;language=en_US', 'en_global/features'),
-            array('/sites/examplecom/features@user-robert;language=de_DE,en_US&country=global', 'de_global/features'),
-            array('/sites/examplecom/features@user-robert;country=de', 'en_de/features')
+            array('/sites/examplecom@live;language=en_US', '', true),
+            array('/sites/examplecom@live;language=en_US', 'en_global', false),
+            array('/sites/examplecom@user-robert;language=de_DE,en_US', 'de_global', false),
+            array('/sites/examplecom/features@user-robert;language=de_DE,en_US', 'de_global/features', false),
+            array('/sites/examplecom/features@user-robert;language=en_US', 'en_global/features', false),
+            array('/sites/examplecom/features@user-robert;language=de_DE,en_US&country=global', 'de_global/features', false),
+            array('/sites/examplecom/features@user-robert;country=de', 'en_de/features', false)
         );
     }
 
@@ -321,33 +321,9 @@ class FrontendNodeRoutePartHandlerTest extends UnitTestCase
 
     /**
      * @test
-     */
-    public function matchCreatesContextForCurrentDomainIfOneIsFound()
-    {
-        $mockSite = $this->getMockBuilder(Site::class)->disableOriginalConstructor()->getMock();
-
-        $mockDomain = $this->getMockBuilder(Domain::class)->disableOriginalConstructor()->getMock();
-        $mockDomain->expects($this->any())->method('getSite')->will($this->returnValue($mockSite));
-
-        $this->mockDomainRepository->expects($this->atLeastOnce())->method('findOneByActiveRequest')->will($this->returnValue($mockDomain));
-
-        $mockContext = $this->buildMockContext(array('workspaceName' => 'live'));
-        $mockContext->mockSite = $mockSite;
-        $mockContext->mockSiteNode = $this->buildSiteNode($mockContext, '/sites/examplecom');
-
-        $this->assertNull($mockContext->getCurrentDomain());
-
-        $routePath = '';
-        $this->routePartHandler->match($routePath);
-
-        $this->assertSame($mockDomain, $mockContext->getCurrentDomain());
-    }
-
-    /**
-     * @test
      * @dataProvider contextPathsAndRequestPathsDataProvider
      */
-    public function matchConsidersDimensionValuePresetsSpecifiedInTheRequestUriWhileBuildingTheContext($expectedContextPath, $requestPath)
+    public function matchConsidersDimensionValuePresetsSpecifiedInTheRequestUriWhileBuildingTheContext($expectedContextPath, $requestPath, $supportEmptySegmentForDimensions)
     {
         $this->contentDimensionPresetSource->setConfiguration(array(
             'language' => array(
@@ -396,6 +372,7 @@ class FrontendNodeRoutePartHandlerTest extends UnitTestCase
         $mockSubNode = $this->buildSubNode($mockContext->mockSiteNode, 'features');
         $mockSubNode->mockProperties['uriPathSegment'] = 'features';
 
+        $this->inject($this->routePartHandler, 'supportEmptySegmentForDimensions', $supportEmptySegmentForDimensions);
         $this->assertTrue($this->routePartHandler->match($requestPath));
         $value = $this->routePartHandler->getValue();
     }
@@ -517,7 +494,7 @@ class FrontendNodeRoutePartHandlerTest extends UnitTestCase
         }));
 
         $that = $this;
-        $this->mockContextFactory->expects($this->once())->method('create')->will($this->returnCallback(function ($contextProperties) use ($that, $mockContext) {
+        $this->mockContextFactory->expects($this->atLeastOnce())->method('create')->will($this->returnCallback(function ($contextProperties) use ($that, $mockContext) {
             // The important assertion:
             $that->assertSame('live', $contextProperties['workspaceName']);
             return $mockContext;
@@ -545,41 +522,13 @@ class FrontendNodeRoutePartHandlerTest extends UnitTestCase
         }));
 
         $that = $this;
-        $this->mockContextFactory->expects($this->once())->method('create')->will($this->returnCallback(function ($contextProperties) use ($that, $mockContext) {
+        $this->mockContextFactory->expects($this->atLeastOnce())->method('create')->will($this->returnCallback(function ($contextProperties) use ($that, $mockContext) {
             // The important assertion:
             $that->assertSame('user-johndoe', $contextProperties['workspaceName']);
             return $mockContext;
         }));
 
         $routeValues = array('node' => '/sites/examplecom/home@user-johndoe');
-        $this->assertTrue($this->routePartHandler->resolve($routeValues));
-    }
-
-    /**
-     * @test
-     */
-    public function resolveCreatesContextForCurrentDomainIfGivenValueIsAStringAndADomainIsFound()
-    {
-        $mockContext = $this->buildMockContext(array('workspaceName' => 'user-johndoe'));
-        $mockContext->mockSite = $this->getMockBuilder(Site::class)->disableOriginalConstructor()->getMock();
-        $mockSiteNode = $this->buildSiteNode($mockContext, '/sites/examplecom');
-        $mockContext->mockSiteNode = $mockSiteNode;
-
-        $mockContext->expects($this->any())->method('getNode')->will($this->returnCallback(function ($nodePath) use ($mockSiteNode) {
-            return ($nodePath === '/sites/examplecom') ? $mockSiteNode : null;
-        }));
-
-        $mockDomain = $this->getMockBuilder(Domain::class)->disableOriginalConstructor()->getMock();
-        $this->mockDomainRepository->expects($this->atLeastOnce())->method('findOneByActiveRequest')->will($this->returnValue($mockDomain));
-
-        $that = $this;
-        $this->mockContextFactory->expects($this->once())->method('create')->will($this->returnCallback(function ($contextProperties) use ($that, $mockContext, $mockDomain) {
-            // The important assertion:
-            $that->assertSame($mockDomain, $contextProperties['currentDomain']);
-            return $mockContext;
-        }));
-
-        $routeValues = array('node' => '/sites/examplecom');
         $this->assertTrue($this->routePartHandler->resolve($routeValues));
     }
 
@@ -665,7 +614,7 @@ class FrontendNodeRoutePartHandlerTest extends UnitTestCase
      * @dataProvider contextPathsAndRequestPathsDataProvider
      * @test
      */
-    public function resolveConsidersDimensionValuesPassedViaTheContextPathForRenderingTheUrl($contextPath, $expectedUriPath)
+    public function resolveConsidersDimensionValuesPassedViaTheContextPathForRenderingTheUrl($contextPath, $expectedUriPath, $supportEmptySegmentForDimensions)
     {
         $this->contentDimensionPresetSource->setConfiguration(array(
             'language' => array(
@@ -730,6 +679,7 @@ class FrontendNodeRoutePartHandlerTest extends UnitTestCase
         }));
 
         $routeValues = array('node' => $contextPath);
+        $this->inject($this->routePartHandler, 'supportEmptySegmentForDimensions', $supportEmptySegmentForDimensions);
         $this->assertTrue($this->routePartHandler->resolve($routeValues));
         $this->assertSame($expectedUriPath, $this->routePartHandler->getValue());
     }
@@ -861,6 +811,13 @@ class FrontendNodeRoutePartHandlerTest extends UnitTestCase
             return $mockContext->mockTargetDimensions;
         }));
 
+        $mockContext->expects($this->any())->method('getNodeByIdentifier')->will($this->returnCallback(function ($identifier) use ($mockContext) {
+            if (array_key_exists($identifier, $mockContext->mockNodesByIdentifier)) {
+                return $mockContext->mockNodesByIdentifier[$identifier];
+            }
+            return null;
+        }));
+
         $mockContext->expects($this->any())->method('getProperties')->will($this->returnCallback(function () use ($mockContext, $contextProperties) {
             return array(
                 'workspaceName' => $contextProperties['workspaceName'],
@@ -898,9 +855,13 @@ class FrontendNodeRoutePartHandlerTest extends UnitTestCase
 
         $mockNode = $this->createMock(NodeInterface::class);
         $mockNode->expects($this->any())->method('getContext')->will($this->returnValue($mockContext));
-        $mockNode->expects($this->any())->method('getIdentifier')->will($this->returnValue('site-node-uuid'));
         $mockNode->expects($this->any())->method('getName')->will($this->returnValue($nodeName));
         $mockNode->expects($this->any())->method('getNodeType')->will($this->returnValue($mockNodeType));
+        $mockNode->expects($this->any())->method('getWorkspace')->will($this->returnValue($mockContext->getWorkspace()));
+
+        $mockNodeIdentifier = Algorithms::generateUUID();
+        $mockNode->expects($this->any())->method('getIdentifier')->will($this->returnValue($mockNodeIdentifier));
+        $mockContext->mockNodesByIdentifier[$mockNodeIdentifier] = $mockNode;
 
         // Parent node is set by buildSubNode()
         $mockNode->mockParentNode = null;
@@ -962,6 +923,7 @@ class FrontendNodeRoutePartHandlerTest extends UnitTestCase
      *
      * @param NodeInterface $mockParentNode
      * @param string $nodeName
+     * @param string $nodeTypeName
      * @return NodeInterface
      */
     protected function buildSubNode($mockParentNode, $nodeName, $nodeTypeName = 'TYPO3.Neos:Document')

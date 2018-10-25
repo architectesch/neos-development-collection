@@ -13,6 +13,7 @@ namespace TYPO3\TypoScript\Core;
 
 use TYPO3\Eel\Package;
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\TypoScript\Exception;
 use TYPO3\Flow\Utility\Arrays;
 use TYPO3\TypoScript;
 
@@ -156,7 +157,7 @@ class Parser implements ParserInterface
 	/x';
     const SPLIT_PATTERN_VALUENUMBER = '/^\s*-?\d+\s*$/';
     const SPLIT_PATTERN_VALUEFLOATNUMBER = '/^\s*-?\d+(\.\d+)?\s*$/';
-    const SPLIT_PATTERN_VALUELITERAL = '/^"((?:\\\\.|[^\\\\"])*)"|\'((?:\\\\.|[^\\\\\'])*)\'$/';
+    const SPLIT_PATTERN_VALUELITERAL = '/^"([^"\\\\]*(?>\\\\.[^"\\\\]*)*)"|\'([^\'\\\\]*(?>\\\\.[^\'\\\\]*)*)\'$/';
     const SPLIT_PATTERN_VALUEMULTILINELITERAL = '/
 		^(
 			(?P<DoubleQuoteChar>")
@@ -274,6 +275,7 @@ class Parser implements ParserInterface
         $this->initialize();
         $this->objectTree = $objectTreeUntilNow;
         $this->contextPathAndFilename = $contextPathAndFilename;
+        $sourceCode = str_replace("\r\n", "\n", $sourceCode);
         $this->currentSourceCodeLines = explode(chr(10), $sourceCode);
         while (($typoScriptLine = $this->getNextTypoScriptLine()) !== false) {
             $this->parseTypoScriptLine($typoScriptLine);
@@ -529,19 +531,19 @@ class Parser implements ParserInterface
             // either source or target are a prototype definition
             if ($sourceIsPrototypeDefinition && $targetIsPrototypeDefinition && count($sourceObjectPathArray) === 2 && count($targetObjectPathArray) === 2) {
                 // both are a prototype definition and the path has length 2: this means
-                    // it must be of the form "prototype(Foo) < prototype(Bar)"
+                // it must be of the form "prototype(Foo) < prototype(Bar)"
                 $targetObjectPathArray[] = '__prototypeObjectName';
                 $this->setValueInObjectTree($targetObjectPathArray, end($sourceObjectPathArray));
             } elseif ($sourceIsPrototypeDefinition && $targetIsPrototypeDefinition) {
                 // Both are prototype definitions, but at least one is nested (f.e. foo.prototype(Bar))
-                    // Currently, it is not supported to override the prototypical inheritance in
-                    // parts of the TS rendering tree.
-                    // Although this might work conceptually, it makes reasoning about the prototypical
-                    // inheritance tree a lot more complex; that's why we forbid it right away.
+                // Currently, it is not supported to override the prototypical inheritance in
+                // parts of the TS rendering tree.
+                // Although this might work conceptually, it makes reasoning about the prototypical
+                // inheritance tree a lot more complex; that's why we forbid it right away.
                 throw new TypoScript\Exception('Tried to parse "' . $targetObjectPath . '" < "' . $sourceObjectPath . '", however one of the sides is nested (e.g. foo.prototype(Bar)). Setting up prototype inheritance is only supported at the top level: prototype(Foo) < prototype(Bar)', 1358418019);
             } else {
                 // Either "source" or "target" are no prototypes. We do not support copying a
-                    // non-prototype value to a prototype value or vice-versa.
+                // non-prototype value to a prototype value or vice-versa.
                 throw new TypoScript\Exception('Tried to parse "' . $targetObjectPath . '" < "' . $sourceObjectPath . '", however one of the sides is no prototype definition of the form prototype(Foo). It is only allowed to build inheritance chains with prototype objects.', 1358418015);
             }
         } else {
@@ -782,8 +784,8 @@ class Parser implements ParserInterface
         }
 
         $currentKey = array_shift($objectPathArray);
-        if ((integer)$currentKey > 0) {
-            $currentKey = (integer)$currentKey;
+        if (is_numeric($currentKey)) {
+            $currentKey = (int)$currentKey;
         }
 
         if (empty($objectPathArray)) {
@@ -835,8 +837,8 @@ class Parser implements ParserInterface
 
         if (count($objectPathArray) > 0) {
             $currentKey = array_shift($objectPathArray);
-            if ((integer)$currentKey > 0) {
-                $currentKey = intval($currentKey);
+            if (is_numeric($currentKey)) {
+                $currentKey = (int)$currentKey;
             }
             if (!isset($objectTree[$currentKey])) {
                 $objectTree[$currentKey] = array();

@@ -49,7 +49,7 @@ The following options are allowed:
   `TYPO3.Neos.NodeTypes:Page`.
 
 ``superTypes``
-  An array of parent node types inherited from as keys with a boolean values.::
+  An array of parent node types as keys with a boolean value::
 
     'TYPO3.Neos:Document':
       superTypes:
@@ -69,7 +69,7 @@ The following options are allowed:
         # ALLOW text, DISALLOW Image
         'TYPO3.Neos.NodeTypes:Text': true
         'TYPO3.Neos.NodeTypes:Image': false
-        # DISALLOW as Fallback (for not-explicitely-listed node types)
+        # DISALLOW as Fallback (for not-explicitly-listed node types)
         '*': false
 
 ``childNodes``
@@ -136,9 +136,9 @@ The following options are allowed:
     Small numbers are sorted on top.
 
   ``icon``
-    This setting define the icon to use in the Neos UI for the node type
+    This setting defines the icon that the Neos UI will use to display the node type.
 
-    Currently it's only possible to use a predefined selection of icons, which
+    Currently it is only possible to use a predefined selection of icons, which
     are available in Font Awesome http://fortawesome.github.io/Font-Awesome/3.2.1/icons/.
 
   ``help``
@@ -157,7 +157,7 @@ The following options are allowed:
 
       If the ``thumbnail`` setting is undefined but an image matching the nodetype name
        is found, it will be used automatically. It will be looked for in
-       ``<packageKey>/Resources/Public/Images/NodeTypes/<nodeTypeName>.png`` with
+       ``<packageKey>/Resources/Public/NodeTypes/Thumbnails/<nodeTypeName>.png`` with
        ``packageKey`` and ``nodeTypeName`` being extracted from the full nodetype name
        like this:
 
@@ -285,10 +285,15 @@ The following options are allowed:
             'right': true
             'justify': true
           'formatlesspaste':
-            'button': true # Show toggle button for formatless pasting.
-            'formatlessPasteOption': false # Whether the format less pasting should be enable by default.
-            'strippedElements': ['a'] # If not set the default setting is used.
-            'autoparagraph': true # Automatically wrap non-wrapped text blocks in paragraph blocks.
+            # Show toggle button for formatless pasting.
+            'button': true
+            # Whether the formatless pasting should be enable by default.
+            'formatlessPasteOption': false
+            # If not set the default setting is used: 'a', 'abbr', 'b', 'bdi', 'bdo', 'cite', 'code', 'del', 'dfn',
+            # 'em', 'i', 'ins', 'kbd', 'mark', 'q', 'rp', 'rt', 'ruby', 's', 'samp', 'small', 'strong', 'sub', 'sup',
+            # 'time', 'u', 'var'
+            'strippedElements': ['a']
+          'autoparagraph': true # Automatically wrap non-wrapped text blocks in paragraph blocks.
 
       Example of disabling all formatting options::
 

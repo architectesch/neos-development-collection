@@ -23,6 +23,7 @@ use TYPO3\Flow\Property\PropertyMappingConfigurationBuilder;
 use TYPO3\Flow\Property\TypeConverter\PersistentObjectConverter;
 use TYPO3\Flow\Security\Context;
 use TYPO3\Media\Domain\Model\AssetInterface;
+use TYPO3\Media\Domain\Model\ImageInterface;
 use TYPO3\Neos\Controller\Module\AbstractModuleController;
 use TYPO3\Neos\Domain\Model\User;
 use TYPO3\Neos\Domain\Repository\SiteRepository;
@@ -583,6 +584,13 @@ class WorkspacesController extends AbstractModuleController
                         'diff' => $diffArray
                     ];
                 }
+            } elseif ($originalPropertyValue instanceof ImageInterface || $changedPropertyValue instanceof ImageInterface) {
+                $contentChanges[$propertyName] = [
+                    'type' => 'image',
+                    'propertyLabel' => $this->getPropertyLabel($propertyName, $changedNode),
+                    'original' => $originalPropertyValue,
+                    'changed' => $changedPropertyValue
+                ];
             } elseif ($originalPropertyValue instanceof AssetInterface || $changedPropertyValue instanceof AssetInterface) {
                 $contentChanges[$propertyName] = [
                     'type' => 'asset',
@@ -590,8 +598,14 @@ class WorkspacesController extends AbstractModuleController
                     'original' => $originalPropertyValue,
                     'changed' => $changedPropertyValue
                 ];
-            } elseif ($originalPropertyValue instanceof \DateTime && $changedPropertyValue instanceof \DateTime) {
-                if ($changedPropertyValue->getTimestamp() !== $originalPropertyValue->getTimestamp()) {
+            } elseif ($originalPropertyValue instanceof \DateTime || $changedPropertyValue instanceof \DateTime) {
+                $changed = false;
+                if (!$changedPropertyValue instanceof \DateTime || !$originalPropertyValue instanceof \DateTime) {
+                    $changed = true;
+                } elseif ($changedPropertyValue->getTimestamp() !== $originalPropertyValue->getTimestamp()) {
+                    $changed = true;
+                }
+                if ($changed) {
                     $contentChanges[$propertyName] = [
                         'type' => 'datetime',
                         'propertyLabel' => $this->getPropertyLabel($propertyName, $changedNode),

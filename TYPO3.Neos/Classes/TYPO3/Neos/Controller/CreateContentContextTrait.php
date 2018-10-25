@@ -12,6 +12,7 @@ namespace TYPO3\Neos\Controller;
  */
 
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\Neos\Domain\Service\ContentContext;
 use TYPO3\Neos\Domain\Service\SiteService;
 use TYPO3\TYPO3CR\Domain\Model\NodeData;
@@ -27,12 +28,6 @@ trait CreateContentContextTrait
      * @var \TYPO3\Neos\Domain\Service\ContentContextFactory
      */
     protected $_contextFactory;
-
-    /**
-     * @Flow\Inject
-     * @var \TYPO3\Neos\Domain\Repository\DomainRepository
-     */
-    protected $_domainRepository;
 
     /**
      * @Flow\Inject
@@ -62,14 +57,6 @@ trait CreateContentContextTrait
             }, $dimensions);
         }
 
-        $currentDomain = $this->_domainRepository->findOneByActiveRequest();
-        if ($currentDomain !== null) {
-            $contextProperties['currentSite'] = $currentDomain->getSite();
-            $contextProperties['currentDomain'] = $currentDomain;
-        } else {
-            $contextProperties['currentSite'] = $this->_siteRepository->findFirstOnline();
-        }
-
         return $this->_contextFactory->create($contextProperties);
     }
 
@@ -94,7 +81,7 @@ trait CreateContentContextTrait
             'currentSite' => $site
         ];
 
-        if ($domain = $site->getFirstActiveDomain()) {
+        if ($site instanceof Site && $domain = $site->getFirstActiveDomain()) {
             $contextProperties['currentDomain'] = $domain;
         }
 

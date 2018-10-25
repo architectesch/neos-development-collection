@@ -13,6 +13,7 @@ namespace TYPO3\TypoScript\Tests\Functional\TypoScriptObjects;
 
 use TYPO3\Flow\Cache\CacheManager;
 use TYPO3\Flow\Cache\Frontend\FrontendInterface;
+use TYPO3\Flow\Mvc\ActionRequest;
 use TYPO3\TypoScript\Core\Cache\ContentCache;
 use TYPO3\TypoScript\Tests\Functional\TypoScriptObjects\Fixtures\Model\TestModel;
 
@@ -53,42 +54,16 @@ class ContentCacheTest extends AbstractTypoScriptObjectTest
         $view->assign('object', $object);
         $view->setTypoScriptPath('contentCache/cachedSegment');
 
-            // This render call should create the cache entry
+        // This render call should create the cache entry
         $firstRenderResult = $view->render();
 
         $object->setValue('Object value 2');
 
-            // And this render call should use the existing cache entry
+        // And this render call should use the existing cache entry
         $secondRenderResult = $view->render();
 
         $this->assertSame('Cached segment|Object value 1', $firstRenderResult);
         $this->assertSame($firstRenderResult, $secondRenderResult);
-    }
-
-    /**
-     * @test
-     */
-    public function cacheUsesContextValuesAsDefaultCacheIdentifier()
-    {
-        $object1 = new TestModel(42, 'Object value 1');
-        $object2 = new TestModel(21, 'Object value 2');
-
-        $view = $this->buildView();
-        $view->setOption('enableContentCache', true);
-        $view->setTypoScriptPath('contentCache/cachedSegment');
-
-        $view->assign('object', $object1);
-        $firstRenderResult = $view->render();
-            // Render again to use the cached segment (assert that the Runtime needs to be in a correct state for the next render)
-        $secondRenderResult = $view->render();
-
-        $this->assertSame('Cached segment|Object value 1', $firstRenderResult);
-        $this->assertSame($firstRenderResult, $secondRenderResult);
-
-        $view->assign('object', $object2);
-        $anotherObjectRenderResult = $view->render();
-
-        $this->assertSame('Cached segment|Object value 2', $anotherObjectRenderResult);
     }
 
     /**
@@ -109,7 +84,7 @@ class ContentCacheTest extends AbstractTypoScriptObjectTest
 
         $this->assertSame('Outer segment|site=site1|Inner segment|object=Object value 1|End inner|End outer', $firstRenderResult);
 
-            // This must not influence the output, since the inner segment should be fetched from cache
+        // This must not influence the output, since the inner segment should be fetched from cache
         $object->setValue('Object value 2');
 
         $view->assign('site', 'site2');
@@ -175,7 +150,7 @@ class ContentCacheTest extends AbstractTypoScriptObjectTest
         $firstRenderResult = $view->render();
         $this->assertSame('Outer segment|object=Object value 1|Uncached segment|counter=1|End uncached|End outer', $firstRenderResult);
 
-            // Update the object value to see that the outer segment is really cached
+        // Update the object value to see that the outer segment is really cached
         $object->setValue('Object value 2');
 
         $secondRenderResult = $view->render();
@@ -198,7 +173,7 @@ class ContentCacheTest extends AbstractTypoScriptObjectTest
         $firstRenderResult = $view->render();
         $this->assertSame('Outer segment|object=Object value 1|Uncached segment|counter=1|End uncached|End outer', $firstRenderResult);
 
-            // Assigning a new object changes the identifier and therefore a new outer cache segment is created
+        // Assigning a new object changes the identifier and therefore a new outer cache segment is created
         $newObject = new TestModel(21, 'New object value');
         $view->assign('object', $newObject);
 
@@ -231,10 +206,10 @@ class ContentCacheTest extends AbstractTypoScriptObjectTest
         $secondRenderResult = $view->render();
         $this->assertSame($firstRenderResult, $secondRenderResult);
 
-            // This should flush "Inner segment 1"
+        // This should flush "Inner segment 1"
         $this->contentCache->flushByTag('Object_' . $object->getId());
 
-            // Since the cache entry for "Inner segment 1" is missing, the outer segment is also evaluated, but not "Inner segment 2"
+        // Since the cache entry for "Inner segment 1" is missing, the outer segment is also evaluated, but not "Inner segment 2"
         $secondRenderResult = $view->render();
         $this->assertSame('Outer segment|counter=2|Inner segment 1|object=Object value 2|End innerInner segment 2|object=Object value 1|End inner|End outer', $secondRenderResult);
     }
@@ -258,17 +233,17 @@ class ContentCacheTest extends AbstractTypoScriptObjectTest
 
         $object->setValue('Object value 2');
 
-            // This should flush "Inner segment 1"
+        // This should flush "Inner segment 1"
         $this->contentCache->flushByTag('NodeType_Acme.Demo:SampleNodeType');
 
-            // Since the cache entry for "Inner segment 1" is missing, the outer segment is also evaluated, but not "Inner segment 2"
+        // Since the cache entry for "Inner segment 1" is missing, the outer segment is also evaluated, but not "Inner segment 2"
         $secondRenderResult = $view->render();
         $this->assertSame('Outer segment|counter=2|Inner segment 1|object=Object value 2|End innerInner segment 2|object=Object value 1|End inner|End outer', $secondRenderResult);
 
-            // This should flush "Inner segment 2"
+        // This should flush "Inner segment 2"
         $this->contentCache->flushByTag('Node_47a6ee72-936a-4489-abc1-3666a63cdc4a');
 
-            // Since the cache entry for "Inner segment 2" is missing, the outer segment is also evaluated, but not "Inner segment 1"
+        // Since the cache entry for "Inner segment 2" is missing, the outer segment is also evaluated, but not "Inner segment 1"
         $secondRenderResult = $view->render();
         $this->assertSame('Outer segment|counter=3|Inner segment 1|object=Object value 2|End innerInner segment 2|object=Object value 2|End inner|End outer', $secondRenderResult);
     }
@@ -508,6 +483,44 @@ class ContentCacheTest extends AbstractTypoScriptObjectTest
     /**
      * @test
      */
+    public function globalIdentifiersAreUsedWithBlankEntryIdentifiers()
+    {
+        $entriesWritten = array();
+        $mockCache = $this->createMock('TYPO3\Flow\Cache\Frontend\FrontendInterface');
+        $mockCache->expects($this->any())->method('get')->will($this->returnValue(false));
+        $mockCache->expects($this->any())->method('has')->will($this->returnValue(false));
+        $mockCache->expects($this->atLeastOnce())->method('set')->will($this->returnCallback(function ($entryIdentifier, $data, $tags, $lifetime) use (&$entriesWritten) {
+            $entriesWritten[$entryIdentifier] = array(
+                'tags' => $tags
+            );
+        }));
+        $this->inject($this->contentCache, 'cache', $mockCache);
+
+        $view = $this->buildView();
+        $view->setOption('enableContentCache', true);
+        $view->setTypoScriptPath('contentCache/globalIdentifiersAreUsedWithBlankEntryIdentifiers');
+
+        $view->assign('site', 'site1');
+
+        $firstRenderResult = $view->render();
+
+        $view->assign('site', 'site2');
+        $secondRenderResult = $view->render();
+        $this->assertSame($firstRenderResult, $secondRenderResult);
+        $this->assertCount(2, $entriesWritten);
+        $this->assertEquals(array(
+            'd9deea3648c9bfb24afdcb26bab8c023' => array(
+                'tags' => array('site1')
+            ),
+            '00e5aff1779f8f65ec4abf801834a682' => array(
+                'tags' => array('site2')
+            ),
+        ), $entriesWritten);
+    }
+
+    /**
+     * @test
+     */
     public function cacheIdentifierPrototypeCanBeOverwritten()
     {
         $entriesWritten = array();
@@ -584,5 +597,153 @@ class ContentCacheTest extends AbstractTypoScriptObjectTest
 
         $secondRenderResult = $view->render();
         $this->assertSame('Outer segment|object=Object value 1|Uncached segment|counter=2|End uncached|End outer', $secondRenderResult);
+    }
+
+    /**
+     * @test
+     */
+    public function dynamicSegmentIsCachedIfDiscriminatorIsNotChanged()
+    {
+        $renderObject = new TestModel(42, 'Render object');
+        $discriminatorObject = new TestModel(43, 'Discriminator object');
+
+        $view = $this->buildView();
+        $view->setOption('enableContentCache', true);
+        $view->assign('renderObject', $renderObject);
+        $view->assign('discriminatorObject', $discriminatorObject);
+        $view->setTypoScriptPath('contentCache/dynamicSegment');
+
+        $firstRenderResult = $view->render();
+
+        $renderObject->setValue('Should not affect the cache');
+
+        $secondRenderResult = $view->render();
+
+        $this->assertSame('Dynamic segment|counter=1', $secondRenderResult);
+        $this->assertSame($firstRenderResult, $secondRenderResult);
+    }
+
+    /**
+     * @test
+     */
+    public function dynamicSegmentCacheIsFlushedIfDiscriminatorIsChanged()
+    {
+        $renderObject = new TestModel(42, 'Render object');
+        $discriminatorObject = new TestModel(43, 'Discriminator object');
+
+        $view = $this->buildView();
+        $view->setOption('enableContentCache', true);
+        $view->assign('renderObject', $renderObject);
+        $view->assign('discriminatorObject', $discriminatorObject);
+        $view->setTypoScriptPath('contentCache/dynamicSegment');
+
+        $firstRenderResult = $view->render();
+
+        $discriminatorObject->setValue('This should affect the cache');
+
+        $secondRenderResult = $view->render();
+
+        $this->assertSame('Dynamic segment|counter=2', $secondRenderResult);
+        $this->assertNotSame($firstRenderResult, $secondRenderResult);
+    }
+
+    /**
+     * @test
+     */
+    public function dynamicSegmentCacheBehavesLikeUncachedIfDiscriminatorIsDisabled()
+    {
+        $renderObject = new TestModel(42, 'Render object');
+        $discriminatorObject = new TestModel(43, 'Discriminator object');
+
+        $view = $this->buildView();
+        $view->setOption('enableContentCache', true);
+        $view->assign('renderObject', $renderObject);
+        $view->assign('discriminatorObject', $discriminatorObject);
+        $view->setTypoScriptPath('contentCache/dynamicSegmentWithDisabledDiscriminator');
+
+        $firstRenderResult = $view->render();
+        $secondRenderResult = $view->render();
+
+        $discriminatorObject->setValue('disable');
+
+        $thirdRenderResult = $view->render();
+        $fourthRenderResult = $view->render();
+
+        $this->assertSame('Dynamic segment|counter=1', $firstRenderResult);
+        $this->assertSame($firstRenderResult, $secondRenderResult);
+        $this->assertSame('Dynamic segment|counter=2', $thirdRenderResult);
+        $this->assertSame('Dynamic segment|counter=3', $fourthRenderResult);
+    }
+
+    /**
+     * @test
+     */
+    public function cachedSegmentsCanBeNestedWithinDynamicSegments()
+    {
+        $renderObject = new TestModel(42, 'Render object');
+
+        $view = $this->buildView();
+        $view->setOption('enableContentCache', true);
+        $view->assign('renderObject', $renderObject);
+        $view->setTypoScriptPath('contentCache/dynamicSegmentWithNestedCachedSegment');
+
+        $firstRenderResult = $view->render();
+        $secondRenderResult = $view->render();
+
+        $this->assertSame('Cached segment|counter=1|Nested dynamic segment|counter=2|Nested cached segment|counter=3', $firstRenderResult);
+        $this->assertSame($firstRenderResult, $secondRenderResult);
+    }
+
+    /**
+     * @test
+     */
+    public function cachedSegmentWithNestedDynamicSegmentCanReRenderWithCacheEntryFlushTest()
+    {
+        $view = $this->buildView();
+        $view->setOption('enableContentCache', true);
+        $view->assign('someContextVariable', 'prettyUnused');
+        $view->setTypoScriptPath('contentCache/cachedSegmentWithNestedDynamicSegment');
+
+        $firstRenderResult = $view->render();
+
+        $this->contentCache->flushByTag('testing');
+
+        $secondRenderResult = $view->render();
+        $thirdRenderResult = $view->render();
+
+        $this->assertSame('prettyUnused', $firstRenderResult);
+        $this->assertSame('prettyUnused', $secondRenderResult);
+        $this->assertSame('prettyUnused', $thirdRenderResult);
+    }
+    /**
+     * @test
+     */
+    public function contextIsCorrectlyEvaluated()
+    {
+        $view = $this->buildView();
+        $view->setOption('enableContentCache', true);
+        $view->assign('someContextVariable', 'prettyUnused');
+        $view->setTypoScriptPath('contentCache/dynamicWithChangingDiscriminator');
+
+        /** @var ActionRequest $actionRequest */
+        $actionRequest = $this->controllerContext->getRequest();
+        $actionRequest->setArgument('testArgument', '1');
+        $firstRenderResult = $view->render();
+
+        $this->contentCache->flushByTag('testing');
+
+        $actionRequest->setArgument('testArgument', '2');
+        $secondRenderResult = $view->render();
+
+        $actionRequest->setArgument('testArgument', '3');
+        $thirdRenderResult = $view->render();
+
+        $actionRequest->setArgument('testArgument', '4');
+        $fourthRenderResult = $view->render();
+
+        $this->assertSame('1', $firstRenderResult);
+        $this->assertSame('2', $secondRenderResult);
+        $this->assertSame('3', $thirdRenderResult);
+        $this->assertSame('4', $fourthRenderResult);
     }
 }

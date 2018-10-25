@@ -86,9 +86,6 @@ class NodeController extends ActionController
         if ($node === null) {
             throw new NodeNotFoundException('The requested node does not exist or isn\'t accessible to the current user', 1430218623);
         }
-        if (!$node->getContext()->isLive() && !$this->privilegeManager->isPrivilegeTargetGranted('TYPO3.Neos:Backend.GeneralAccess')) {
-            $this->redirect('index', 'Login', null, array('unauthorized' => true));
-        }
 
         $inBackend = $node->getContext()->isInBackend();
 
@@ -160,6 +157,8 @@ class NodeController extends ActionController
             throw new NodeNotFoundException(sprintf('The shortcut node target of node "%s" could not be resolved', $node->getPath()), 1430218730);
         } elseif (is_string($resolvedNode)) {
             $this->redirectToUri($resolvedNode);
+        } elseif ($resolvedNode instanceof NodeInterface && $resolvedNode === $node) {
+            throw new NodeNotFoundException('The requested node does not exist or isn\'t accessible to the current user', 1502793585229);
         } elseif ($resolvedNode instanceof NodeInterface) {
             $this->redirect('show', null, null, ['node' => $resolvedNode]);
         } else {

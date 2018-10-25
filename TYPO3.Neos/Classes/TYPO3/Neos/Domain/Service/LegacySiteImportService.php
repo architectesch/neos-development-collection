@@ -28,6 +28,7 @@ use TYPO3\Media\Domain\Model\Image;
 use TYPO3\Media\Domain\Model\ImageVariant;
 use TYPO3\Media\Domain\Repository\ImageRepository;
 use TYPO3\Media\Domain\Repository\AssetRepository;
+use TYPO3\Media\Domain\Service\AssetService;
 use TYPO3\Neos\Domain\Exception as DomainException;
 use TYPO3\Neos\Domain\Exception;
 use TYPO3\Neos\Domain\Model\Site;
@@ -86,6 +87,12 @@ class LegacySiteImportService
      * @var AssetRepository
      */
     protected $assetRepository;
+
+    /**
+     * @Flow\Inject
+     * @var AssetService
+     */
+    protected $assetService;
 
     /**
      * @Flow\Inject
@@ -462,11 +469,10 @@ class LegacySiteImportService
                      * The AssetList node type has a custom implementation to work around this bug.
                      * @see NEOS-121
                      */
-                    $repositoryAction = $this->persistenceManager->isNewObject($entry) ? 'add' : 'update';
-                    if ($entry instanceof Image) {
-                        $this->imageRepository->$repositoryAction($entry);
+                    if ($this->persistenceManager->isNewObject($entry)) {
+                        $this->assetService->getRepository($entry)->add($entry);
                     } else {
-                        $this->assetRepository->$repositoryAction($entry);
+                        $this->assetService->getRepository($entry)->update($entry);
                     }
 
                     $entries[] = $entry;
@@ -604,7 +610,7 @@ class LegacySiteImportService
         if ((string)$objectXml->originalImage['__identifier'] !== '') {
             ObjectAccess::setProperty($image, 'Persistence_Object_Identifier', (string)$objectXml->originalImage['__identifier'], true);
         }
-        $this->imageRepository->add($image);
+        $this->assetService->getRepository($image)->add($image);
 
         return $this->objectManager->get($className, $image, $processingInstructions);
     }
@@ -644,7 +650,7 @@ class LegacySiteImportService
 
         $asset = $this->objectManager->get($className);
         $asset->setResource($resource);
-        $this->assetRepository->add($asset);
+        $this->assetService->getRepository($asset)->add($asset);
 
         return $asset;
     }

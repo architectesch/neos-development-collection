@@ -126,6 +126,28 @@ trait NodeOperationsTrait
     }
 
     /**
+     * @Given /^I have the following workspaces:$/
+     */
+    public function iHaveTheFollowingWorkspaces($table)
+    {
+        if ($this->isolated === true) {
+            $this->callStepInSubProcess(__METHOD__, sprintf(' %s %s', escapeshellarg('TYPO3\Flow\Tests\Functional\Command\TableNode'), escapeshellarg(json_encode($table->getHash()))), true);
+        } else {
+            $rows = $table->getHash();
+            $workspaceRepository = $this->getObjectManager()->get('TYPO3\TYPO3CR\Domain\Repository\WorkspaceRepository');
+            foreach ($rows as $row) {
+                $name = $row['Name'];
+                $baseWorkspaceName = $row['Base Workspace'];
+
+                $baseWorkspace = $workspaceRepository->findOneByName($baseWorkspaceName);
+                $workspace = new Workspace($name, $baseWorkspace);
+                $workspaceRepository->add($workspace);
+                $this->objectManager->get('TYPO3\Flow\Persistence\PersistenceManagerInterface')->persistAll();
+            }
+        }
+    }
+
+    /**
      * @Given /^I have the following content dimensions:$/
      */
     public function iHaveTheFollowingContentDimensions($table)
@@ -350,7 +372,7 @@ trait NodeOperationsTrait
     /**
      * @When /^I publish the node$/
      */
-    public function iPublishNodeToWorkspaceWithTheFollowingContext()
+    public function iPublishTheNode()
     {
         if ($this->isolated === true) {
             $this->callStepInSubProcess(__METHOD__);
@@ -376,10 +398,7 @@ trait NodeOperationsTrait
             $sourceContext = $this->getContextForProperties(array('Workspace' => $sourceWorkspaceName));
             $sourceWorkspace = $sourceContext->getWorkspace();
 
-            $liveContext = $this->getContextForProperties(array('Workspace' => 'live'));
-            $liveWorkspace = $liveContext->getWorkspace();
-
-            $sourceWorkspace->publish($liveWorkspace);
+            $sourceWorkspace->publish($sourceWorkspace->getBaseWorkspace());
 
             $this->objectManager->get('TYPO3\Flow\Persistence\PersistenceManagerInterface')->persistAll();
             $this->resetNodeInstances();
@@ -402,6 +421,24 @@ trait NodeOperationsTrait
             $publishingService->discardNodes($publishingService->getUnpublishedNodes($workspace));
 
             $this->getSubcontext('flow')->persistAll();
+            $this->resetNodeInstances();
+        }
+    }
+
+    /**
+     * @When /^I discard the node$/
+     */
+    public function iDiscardTheNode()
+    {
+        if ($this->isolated === true) {
+            $this->callStepInSubProcess(__METHOD__);
+        } else {
+            $node = $this->iShouldHaveOneNode();
+
+            $publishingService = $this->getPublishingService();
+            $publishingService->discardNode($node);
+
+            $this->objectManager->get('TYPO3\Flow\Persistence\PersistenceManagerInterface')->persistAll();
             $this->resetNodeInstances();
         }
     }

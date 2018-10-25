@@ -16,7 +16,6 @@ use TYPO3\Flow\Tests\FunctionalTestCase;
 use TYPO3\Flow\Mvc\ActionRequest;
 use TYPO3\Flow\Mvc\Controller\Arguments;
 use TYPO3\Flow\Mvc\Controller\ControllerContext;
-use TYPO3\Flow\Mvc\FlashMessageContainer;
 use TYPO3\Flow\Mvc\Routing\UriBuilder;
 use TYPO3\Flow\Tests\FunctionalTestRequestHandler;
 use TYPO3\Media\TypeConverter\AssetInterfaceConverter;

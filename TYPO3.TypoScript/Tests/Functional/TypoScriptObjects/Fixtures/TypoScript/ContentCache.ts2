@@ -462,6 +462,18 @@ contentCache.entryIdentifiersAreMergedWithGlobalIdentifiers < contentCache.cache
 	}
 }
 
+contentCache.globalIdentifiersAreUsedWithBlankEntryIdentifiers < contentCache.cachedSegment {
+	prototype(TYPO3.TypoScript:GlobalCacheIdentifiers) {
+		site = ${site}
+	}
+
+	@cache {
+		entryTags {
+			1 = ${site}
+		}
+	}
+}
+
 contentCache.entryIdentifierPrototypeCanBeOverwritten < contentCache.cachedSegment {
 	prototype(TYPO3.TypoScript:GlobalCacheIdentifiers) {
 		site = ${site}
@@ -477,7 +489,6 @@ contentCache.entryIdentifierPrototypeCanBeOverwritten < contentCache.cachedSegme
 		}
 	}
 }
-
 
 contentCache.uncachedSegmentInCachedSegmentCanOverrideContextVariables = TYPO3.TypoScript:Array {
 	5 = 'Outer segment|'
@@ -511,6 +522,107 @@ contentCache.uncachedSegmentInCachedSegmentCanOverrideContextVariables = TYPO3.T
 
 		entryIdentifier {
 			object = ${object}
+		}
+	}
+}
+
+contentCache.dynamicSegment = TYPO3.TypoScript:Array {
+	5 = 'Dynamic segment|'
+	10 = ${'counter=' + renderObject.counter}
+
+	@cache {
+		mode = 'dynamic'
+		context {
+			1 = 'renderObject'
+			2 = 'discriminatorObject'
+		}
+		entryIdentifier {
+			renderObject = 'static'
+		}
+		entryDiscriminator = ${discriminatorObject.value}
+	}
+}
+
+contentCache.dynamicSegmentWithDisabledDiscriminator = TYPO3.TypoScript:Array {
+	5 = 'Dynamic segment|'
+	10 = ${'counter=' + renderObject.counter}
+
+	@cache {
+		mode = 'dynamic'
+		context {
+			1 = 'renderObject'
+			2 = 'discriminatorObject'
+		}
+		entryIdentifier {
+			renderObject = 'static'
+		}
+		entryDiscriminator = ${discriminatorObject.value == 'disable' ? false : discriminatorObject.value}
+	}
+}
+
+contentCache.dynamicSegmentWithNestedCachedSegment = TYPO3.TypoScript:Array {
+	5 = 'Cached segment|'
+	10 = ${'counter=' + renderObject.counter + '|'}
+	15 = TYPO3.TypoScript:Array {
+		5 = 'Nested dynamic segment|'
+		10 = ${'counter=' + renderObject.counter + '|'}
+		15 = TYPO3.TypoScript:Array {
+			5 = 'Nested cached segment|'
+			10 = ${'counter=' + renderObject.counter}
+			@cache {
+				mode = 'cached'
+			}
+		}
+		@cache {
+			mode = 'dynamic'
+			entryDiscriminator = 'static'
+			context {
+				1 = 'renderObject'
+			}
+		}
+	}
+	@cache {
+		mode = 'cached'
+	}
+}
+
+contentCache.cachedSegmentWithNestedDynamicSegment = TYPO3.TypoScript:Value {
+	value = TYPO3.TypoScript:Value {
+		value = ${someContextVariable}
+		@cache {
+			mode = 'dynamic'
+			entryDiscriminator = 'static'
+			context {
+				1 = 'someContextVariable'
+			}
+		}
+	}
+	@cache {
+		mode = 'cached'
+		entryTags {
+			1 = 'testing'
+		}
+	}
+}
+
+contentCache.dynamicWithChangingDiscriminator = TYPO3.TypoScript:Value {
+	value = TYPO3.TypoScript:Value {
+		value = ${request.arguments.testArgument}
+		@cache {
+			mode = 'dynamic'
+			entryDiscriminator = ${request.arguments.testArgument}
+			context {
+				1 = 'someContextVariable'
+			}
+			entryTags {
+				1 = 'dynamicTag'
+			}
+		}
+	}
+	@cache {
+		mode = 'cached'
+		entryTags {
+			1 = 'testing'
 		}
 	}
 }

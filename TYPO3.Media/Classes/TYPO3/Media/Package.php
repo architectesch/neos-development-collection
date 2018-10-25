@@ -13,7 +13,7 @@ namespace TYPO3\Media;
 
 use TYPO3\Flow\Core\Bootstrap;
 use TYPO3\Flow\Package\Package as BasePackage;
-use TYPO3\Media\Domain\Model\Asset;
+use TYPO3\Media\Domain\Service\AssetService;
 use TYPO3\Media\Domain\Service\ThumbnailGenerator;
 
 /**
@@ -28,6 +28,6 @@ class Package extends BasePackage
     public function boot(Bootstrap $bootstrap)
     {
         $dispatcher = $bootstrap->getSignalSlotDispatcher();
-        $dispatcher->connect(Asset::class, 'assetCreated', ThumbnailGenerator::class, 'createThumbnails');
+        $dispatcher->connect(AssetService::class, 'assetCreated', ThumbnailGenerator::class, 'createThumbnails');
     }
 }

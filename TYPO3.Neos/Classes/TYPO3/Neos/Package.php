@@ -17,12 +17,14 @@ use TYPO3\Flow\Monitor\FileMonitor;
 use TYPO3\Flow\Mvc\Routing\RouterCachingService;
 use TYPO3\Flow\Package\Package as BasePackage;
 use TYPO3\Flow\Persistence\Doctrine\PersistenceManager;
+use TYPO3\Media\Domain\Service\AssetService;
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\Neos\Domain\Service\SiteImportService;
 use TYPO3\Neos\Domain\Service\SiteService;
 use TYPO3\Neos\EventLog\Integrations\TYPO3CRIntegrationService;
 use TYPO3\Neos\Routing\Cache\RouteCacheFlusher;
 use TYPO3\Neos\Service\PublishingService;
+use TYPO3\Neos\TypoScript\Cache\ContentCacheFlusher;
 use TYPO3\Neos\Utility\NodeUriPathSegmentGenerator;
 use TYPO3\TYPO3CR\Domain\Model\Node;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
@@ -73,6 +75,9 @@ class Package extends BasePackage
         $dispatcher->connect(Node::class, 'nodeAdded', 'TYPO3\Neos\TypoScript\Cache\ContentCacheFlusher', 'registerNodeChange');
         $dispatcher->connect(Node::class, 'nodeRemoved', 'TYPO3\Neos\TypoScript\Cache\ContentCacheFlusher', 'registerNodeChange');
         $dispatcher->connect(Node::class, 'beforeNodeMove', 'TYPO3\Neos\TypoScript\Cache\ContentCacheFlusher', 'registerNodeChange');
+
+        $dispatcher->connect(AssetService::class, 'assetUpdated', ContentCacheFlusher::class, 'registerAssetChange');
+        $dispatcher->connect(AssetService::class, 'assetResourceReplaced', ContentCacheFlusher::class, 'registerAssetChange');
 
         $dispatcher->connect(Node::class, 'nodeAdded', NodeUriPathSegmentGenerator::class, '::setUniqueUriPathSegment');
         $dispatcher->connect(Node::class, 'nodePropertyChanged', Service\ImageVariantGarbageCollector::class, 'removeUnusedImageVariant');
@@ -130,6 +135,7 @@ class Package extends BasePackage
 
         $dispatcher->connect(Workspace::class, 'beforeNodePublishing', TYPO3CRIntegrationService::class, 'beforeNodePublishing');
         $dispatcher->connect(Workspace::class, 'afterNodePublishing', TYPO3CRIntegrationService::class, 'afterNodePublishing');
+        $dispatcher->connect(Workspace::class, 'baseWorkspaceChanged', 'TYPO3\Neos\Routing\Cache\RouteCacheFlusher', 'registerBaseWorkspaceChange');
 
         $dispatcher->connect(PersistenceManager::class, 'allObjectsPersisted', TYPO3CRIntegrationService::class, 'updateEventsAfterPublish');
         $dispatcher->connect(NodeDataRepository::class, 'repositoryObjectsPersisted', TYPO3CRIntegrationService::class, 'updateEventsAfterPublish');

@@ -32,6 +32,8 @@ Example::
       type: string
       ui:
         label: 'Subtitle'
+        help:
+          message: 'Enter some help text for the editors here. The text will be shown via click.'
         inspector:
           group: 'document'
           editorOptions:
@@ -396,10 +398,10 @@ Options Reference:
 	the node path is shown instead of the url path.
 
 ``threshold`` (number)
-	Minimum amount of characters which trigger a search
+	Minimum amount of characters which trigger a search. Default is set to 2.
 
 Property Type: DateTime ``DateTimeEditor`` -- Date & Time Selection Editor
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The most important option for ``DateTime`` properties is the ``format``, which is configured like in PHP, as the following
 examples show:

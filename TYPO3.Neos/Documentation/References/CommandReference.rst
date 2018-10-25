@@ -564,6 +564,9 @@ The use of
 
 would only create a migration touching tables starting with "acme_com".
 
+Note: A filter-expression will overrule any filter configured through the
+TYPO3.Flow.persistence.doctrine.migrations.ignoredTables setting
+
 
 
 Options
@@ -909,6 +912,12 @@ Lists all locally available packages. Displays the package key, version and
 package title and its state – active or inactive.
 
 
+
+Options
+^^^^^^^
+
+``--loading-order``
+  The returned packages are ordered by their loading order.
 
 
 

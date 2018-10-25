@@ -51,7 +51,7 @@ class ContentCache
     const CACHE_SEGMENT_MARKER = 'CONTENT_CACHE';
 
     const CACHE_PLACEHOLDER_REGEX = "/\x02CONTENT_CACHE(?P<identifier>[a-f0-9]+)\x03CONTENT_CACHE/";
-    const EVAL_PLACEHOLDER_REGEX = "/\x02CONTENT_CACHE(?P<command>[^\x02\x1f\x03]+)\x1fCONTENT_CACHE(?P<context>[^\x02\x1f\x03]+)\x03CONTENT_CACHE/";
+    const EVAL_PLACEHOLDER_REGEX = "/\x02CONTENT_CACHE(?P<command>[^\x02\x1f\x03]+)\x1fCONTENT_CACHE(?P<data>[^\x02\x1f\x03]+)\x03CONTENT_CACHE/";
 
     const MAXIMUM_NESTING_LEVEL = 32;
 
@@ -63,6 +63,7 @@ class ContentCache
 
     const SEGMENT_TYPE_CACHED = 'cached';
     const SEGMENT_TYPE_UNCACHED = 'uncached';
+    const SEGMENT_TYPE_DYNAMICCACHED = 'dynamiccached';
 
     /**
      * @Flow\Inject
@@ -93,6 +94,9 @@ class ContentCache
      */
     protected $randomCacheMarker;
 
+    /**
+     * ContentCache constructor
+     */
     public function __construct()
     {
         $this->randomCacheMarker = Algorithms::generateRandomString(13);
@@ -117,7 +121,7 @@ class ContentCache
      * @param integer $lifetime Lifetime of the cache segment in seconds. NULL for the default lifetime and 0 for unlimited lifetime.
      * @return string The original content, but with additional markers and a cache identifier added
      */
-    public function createCacheSegment($content, $typoScriptPath, $cacheIdentifierValues, array $tags = array(), $lifetime = null)
+    public function createCacheSegment($content, $typoScriptPath, array $cacheIdentifierValues, array $tags = [], $lifetime = null)
     {
         $cacheIdentifier = $this->renderContentCacheEntryIdentifier($typoScriptPath, $cacheIdentifierValues);
         $metadata = implode(',', $tags);
@@ -141,7 +145,39 @@ class ContentCache
     public function createUncachedSegment($content, $typoScriptPath, array $contextVariables)
     {
         $serializedContext = $this->serializeContext($contextVariables);
-        return self::CACHE_SEGMENT_START_TOKEN . $this->randomCacheMarker . 'eval=' . $typoScriptPath . self::CACHE_SEGMENT_SEPARATOR_TOKEN . $this->randomCacheMarker . $serializedContext . self::CACHE_SEGMENT_SEPARATOR_TOKEN . $this->randomCacheMarker . $content . self::CACHE_SEGMENT_END_TOKEN . $this->randomCacheMarker;
+        return self::CACHE_SEGMENT_START_TOKEN . $this->randomCacheMarker . 'eval=' . $typoScriptPath . self::CACHE_SEGMENT_SEPARATOR_TOKEN . $this->randomCacheMarker . json_encode(['context' => $serializedContext]) . self::CACHE_SEGMENT_SEPARATOR_TOKEN . $this->randomCacheMarker . $content . self::CACHE_SEGMENT_END_TOKEN . $this->randomCacheMarker;
+    }
+
+    /**
+     * Similar to createUncachedSegment() creates a content segment with markers added, but in contrast to that function
+     * this method is used for rendering a segment which will be evaluated at runtime but can still be cached.
+     *
+     * This method is called by the TypoScript Runtime while rendering a TypoScript object.
+     *
+     * @param string $content The content rendered by the TypoScript Runtime
+     * @param string $typoScriptPath The TypoScript path that rendered the content, for example "page<TYPO3.Neos.NodeTypes:Page>/body<Acme.Demo:DefaultPageTemplate>/parts/breadcrumbMenu"
+     * @param array $contextVariables TypoScript context variables which are needed to correctly render the specified TypoScript object
+     * @param array $cacheIdentifierValues
+     * @param array $tags Tags to add to the cache entry
+     * @param integer $lifetime Lifetime of the cache segment in seconds. NULL for the default lifetime and 0 for unlimited lifetime.
+     * @param string $cacheDiscriminator The evaluated cache discriminator value
+     * @return string The original content, but with additional markers added
+     */
+    public function createDynamicCachedSegment($content, $typoScriptPath, array $contextVariables, array $cacheIdentifierValues, array $tags = [], $lifetime = null, $cacheDiscriminator)
+    {
+        $metadata = implode(',', $tags);
+        if ($lifetime !== null) {
+            $metadata .= ';' . $lifetime;
+        }
+        $cacheDiscriminator = md5($cacheDiscriminator);
+        $identifier = $this->renderContentCacheEntryIdentifier($typoScriptPath, $cacheIdentifierValues) . '_' . $cacheDiscriminator;
+        $segmentData = [
+            'path' => $typoScriptPath,
+            'metadata' => $metadata,
+            'context' => $this->serializeContext($contextVariables),
+        ];
+
+        return self::CACHE_SEGMENT_START_TOKEN . $this->randomCacheMarker . 'evalCached=' . $identifier . self::CACHE_SEGMENT_SEPARATOR_TOKEN . $this->randomCacheMarker . json_encode($segmentData) . self::CACHE_SEGMENT_SEPARATOR_TOKEN . $this->randomCacheMarker . $content . self::CACHE_SEGMENT_END_TOKEN . $this->randomCacheMarker;
     }
 
     /**
@@ -190,8 +226,8 @@ class ContentCache
 
             foreach ($segments as $segment) {
                 $metadata = explode(';', $segment['metadata']);
-                $tagsValue = $metadata[0] === '' ? array() : ($metadata[0] === '*' ? false : explode(',', $metadata[0]));
-                    // FALSE means we do not need to store the cache entry again (because it was previously fetched)
+                $tagsValue = $metadata[0] === '' ? [] : ($metadata[0] === '*' ? false : explode(',', $metadata[0]));
+                // FALSE means we do not need to store the cache entry again (because it was previously fetched)
                 if ($tagsValue !== false) {
                     $lifetime = isset($metadata[1]) ? (integer)$metadata[1] : null;
                     $this->cache->set($segment['identifier'], $segment['content'], $this->sanitizeTags($tagsValue), $lifetime);
@@ -210,12 +246,20 @@ class ContentCache
      * @param string $typoScriptPath TypoScript path identifying the TypoScript object to retrieve from the content cache
      * @param array $cacheIdentifierValues Further values which play into the cache identifier hash, must be the same as the ones specified while the cache entry was written
      * @param boolean $addCacheSegmentMarkersToPlaceholders If cache segment markers should be added – this makes sense if the cached segment is about to be included in a not-yet-cached segment
+     * @param string|bool $cacheDiscriminator The evaluated cache discriminator value, if any and FALSE if the cache discriminator is disabled for the current context
      * @return string|boolean The segment with replaced cache placeholders, or FALSE if a segment was missing in the cache
      * @throws Exception
      */
-    public function getCachedSegment($uncachedCommandCallback, $typoScriptPath, $cacheIdentifierValues, $addCacheSegmentMarkersToPlaceholders = false)
+    public function getCachedSegment($uncachedCommandCallback, $typoScriptPath, $cacheIdentifierValues, $addCacheSegmentMarkersToPlaceholders = false, $cacheDiscriminator = null)
     {
+        // If $addCacheSegmentMarkersToPlaceholders was set, the outer segment was a cache miss and we need to re-evaluate dynamic cached segments.
+        if ($cacheDiscriminator === false || ($addCacheSegmentMarkersToPlaceholders && $cacheDiscriminator !== null)) {
+            return false;
+        }
         $cacheIdentifier = $this->renderContentCacheEntryIdentifier($typoScriptPath, $cacheIdentifierValues);
+        if ($cacheDiscriminator !== null) {
+            $cacheIdentifier .= '_' . md5($cacheDiscriminator);
+        }
         $content = $this->cache->get($cacheIdentifier);
 
         if ($content === false) {
@@ -228,13 +272,12 @@ class ContentCache
             if ($replaced === false) {
                 return false;
             }
+            $replaced += $this->replaceUncachedPlaceholders($uncachedCommandCallback, $content);
             if ($i > self::MAXIMUM_NESTING_LEVEL) {
                 throw new Exception('Maximum cache segment level reached', 1391873620);
             }
             $i++;
         } while ($replaced > 0);
-
-        $this->replaceUncachedPlaceholders($uncachedCommandCallback, $content);
 
         if ($addCacheSegmentMarkersToPlaceholders) {
             return self::CACHE_SEGMENT_START_TOKEN . $this->randomCacheMarker . $cacheIdentifier . self::CACHE_SEGMENT_SEPARATOR_TOKEN . $this->randomCacheMarker . '*' . self::CACHE_SEGMENT_SEPARATOR_TOKEN . $this->randomCacheMarker . $content . self::CACHE_SEGMENT_END_TOKEN . $this->randomCacheMarker;
@@ -279,36 +322,30 @@ class ContentCache
      *
      * @param \Closure $uncachedCommandCallback
      * @param string $content The content potentially containing not cacheable segments marked by the respective tokens
-     * @return string The original content, but with uncached segments replaced by the actual content
+     * @return integer Number of replaced placeholders
      */
     protected function replaceUncachedPlaceholders(\Closure $uncachedCommandCallback, &$content)
     {
-        $propertyMapper = $this->propertyMapper;
-        $content = preg_replace_callback(self::EVAL_PLACEHOLDER_REGEX, function ($match) use ($uncachedCommandCallback, $propertyMapper) {
+        $cache = $this->cache;
+        $content = preg_replace_callback(self::EVAL_PLACEHOLDER_REGEX, function ($match) use ($uncachedCommandCallback, $cache) {
             $command = $match['command'];
-            $contextString = $match['context'];
+            $additionalData = json_decode($match['data'], true);
 
-            $unserializedContext = array();
-            $serializedContextArray = json_decode($contextString, true);
-            foreach ($serializedContextArray as $variableName => $typeAndValue) {
-                $value = $propertyMapper->convert($typeAndValue['value'], $typeAndValue['type']);
-                $unserializedContext[$variableName] = $value;
-            }
-
-            return $uncachedCommandCallback($command, $unserializedContext);
-        }, $content);
+            return $uncachedCommandCallback($command, $additionalData, $cache);
+        }, $content, -1, $count);
+        return $count;
     }
 
     /**
-     * Generates a string from the given array of context variables
+     * Generates an array of strings from the given array of context variables
      *
      * @param array $contextVariables
-     * @return string
+     * @return array
      * @throws \InvalidArgumentException
      */
     protected function serializeContext(array $contextVariables)
     {
-        $serializedContextArray = array();
+        $serializedContextArray = [];
         foreach ($contextVariables as $variableName => $contextValue) {
             // TODO This relies on a converter being available from the context value type to string
             if ($contextValue !== null) {
@@ -316,8 +353,8 @@ class ContentCache
                 $serializedContextArray[$variableName]['value'] = $this->propertyMapper->convert($contextValue, 'string');
             }
         }
-        $serializedContext = json_encode($serializedContextArray);
-        return $serializedContext;
+
+        return $serializedContextArray;
     }
 
     /**

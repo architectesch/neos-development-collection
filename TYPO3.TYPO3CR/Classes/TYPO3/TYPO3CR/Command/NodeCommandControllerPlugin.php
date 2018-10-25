@@ -325,6 +325,7 @@ HELPTEXT;
     {
         $createdNodesCount = 0;
         $updatedNodesCount = 0;
+        $incorrectNodeTypeCount = 0;
         $nodeCreationExceptions = 0;
 
         $nodeIdentifiersWhichNeedUpdate = [];
@@ -353,9 +354,13 @@ HELPTEXT;
                     try {
                         $childNode = $node->getNode($childNodeName);
                         $childNodeIdentifier = Utility::buildAutoCreatedChildNodeIdentifier($childNodeName, $node->getIdentifier());
-                        if ($childNode === null) {
+                        if ($childNode === null || $childNode->isRemoved() === true) {
                             if ($dryRun === false) {
-                                $node->createNode($childNodeName, $childNodeType, $childNodeIdentifier);
+                                if ($childNode === null) {
+                                    $node->createNode($childNodeName, $childNodeType, $childNodeIdentifier);
+                                } else {
+                                    $node->setRemoved(false);
+                                }
                                 $this->output->outputLine('Auto created node named "%s" in "%s"', array($childNodeName, $node->getPath()));
                             } else {
                                 $this->output->outputLine('Missing node named "%s" in "%s"', array($childNodeName, $node->getPath()));
@@ -363,6 +368,11 @@ HELPTEXT;
                             $createdNodesCount++;
                         } elseif ($childNode->getIdentifier() !== $childNodeIdentifier) {
                             $nodeIdentifiersWhichNeedUpdate[$childNode->getIdentifier()] = $childNodeIdentifier;
+                        } elseif ($childNode->getNodeType() !== $childNodeType) {
+                            $incorrectNodeTypeCount++;
+                            if ($dryRun === false) {
+                                $childNode->setNodeType($childNodeType);
+                            }
                         }
                     } catch (\Exception $exception) {
                         $this->output->outputLine('Could not create node named "%s" in "%s" (%s)', array($childNodeName, $node->getPath(), $exception->getMessage()));
@@ -392,13 +402,16 @@ HELPTEXT;
             }
         }
 
-        if ($createdNodesCount !== 0 || $nodeCreationExceptions !== 0 || $updatedNodesCount !== 0) {
+        if ($createdNodesCount !== 0 || $nodeCreationExceptions !== 0 || $updatedNodesCount !== 0 || $incorrectNodeTypeCount !== 0) {
             if ($dryRun === false) {
                 if ($createdNodesCount > 0) {
                     $this->output->outputLine('Created %s new child nodes', array($createdNodesCount));
                 }
                 if ($updatedNodesCount > 0) {
                     $this->output->outputLine('Updated identifier of %s child nodes', array($updatedNodesCount));
+                }
+                if ($incorrectNodeTypeCount > 0) {
+                    $this->output->outputLine('Changed node type of %s child nodes', array($incorrectNodeTypeCount));
                 }
                 if ($nodeCreationExceptions > 0) {
                     $this->output->outputLine('%s Errors occurred during child node creation', array($nodeCreationExceptions));
@@ -410,6 +423,9 @@ HELPTEXT;
                 }
                 if ($updatedNodesCount > 0) {
                     $this->output->outputLine('%s identifiers of child nodes need to be updated', array($updatedNodesCount));
+                }
+                if ($incorrectNodeTypeCount > 0) {
+                    $this->output->outputLine('%s child nodes have incorrect node type', array($incorrectNodeTypeCount));
                 }
             }
         }

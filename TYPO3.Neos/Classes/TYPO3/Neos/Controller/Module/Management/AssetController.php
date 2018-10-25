@@ -17,23 +17,31 @@ use TYPO3\Flow\Configuration\ConfigurationManager;
 use TYPO3\Flow\Error\Error;
 use TYPO3\Flow\Error\Message;
 use TYPO3\Flow\I18n\Locale;
+use TYPO3\Flow\Mvc\Exception\InvalidArgumentValueException;
+use TYPO3\Flow\Resource\Resource as FlowResource;
 use TYPO3\Flow\Security\Context;
 use TYPO3\Flow\Utility\TypeHandling;
+use TYPO3\Flow\Utility\MediaTypes;
 use TYPO3\Media\Domain\Model\Asset;
 use TYPO3\Media\Domain\Model\AssetCollection;
 use TYPO3\Media\Domain\Model\Image;
+use TYPO3\Media\Domain\Model\AssetInterface;
+use TYPO3\Media\Exception\AssetServiceException;
 use TYPO3\Neos\Controller\BackendUserTranslationTrait;
 use TYPO3\Neos\Controller\CreateContentContextTrait;
+use TYPO3\Neos\Domain\Model\Dto\AssetUsageInNodeProperties;
+use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\Neos\Domain\Repository\DomainRepository;
 use TYPO3\Neos\Domain\Repository\SiteRepository;
 use TYPO3\Neos\Domain\Service\ContentDimensionPresetSourceInterface;
 use TYPO3\Neos\Domain\Service\UserService as DomainUserService;
 use TYPO3\Neos\Service\UserService;
 use TYPO3\TYPO3CR\Domain\Factory\NodeFactory;
-use TYPO3\TYPO3CR\Domain\Model\Node;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Repository\NodeDataRepository;
 use TYPO3\TYPO3CR\Domain\Repository\WorkspaceRepository;
+use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
+use TYPO3\TYPO3CR\Exception\NodeTypeNotFoundException;
 
 /**
  * Controller for asset handling
@@ -106,6 +114,12 @@ class AssetController extends \TYPO3\Media\Controller\AssetController
     protected $contentDimensionPresetSource;
 
     /**
+     * @Flow\Inject
+     * @var NodeTypeManager
+     */
+    protected $nodeTypeManager;
+
+    /**
      * @return void
      */
     public function initializeObject()
@@ -120,72 +134,136 @@ class AssetController extends \TYPO3\Media\Controller\AssetController
     }
 
     /**
-     * Edit an asset
+     * Delete an asset
      *
-     * @param Asset $asset
+     * @param \TYPO3\Media\Domain\Model\Asset $asset
      * @return void
      */
-    public function editAction(Asset $asset)
+    public function deleteAction(\TYPO3\Media\Domain\Model\Asset $asset)
     {
-        parent::editAction($asset);
-        $this->view->assign('relatedNodes', $this->getRelatedNodes($asset));
+        try {
+            $this->assetService->getRepository($asset)->remove($asset);
+            $this->addFlashMessage('assetHasBeenDeleted', '', Message::SEVERITY_OK, [$asset->getLabel()], 1412375050);
+        } catch (AssetServiceException $exception) {
+            $message = $this->translator->translateById('media.deleteRelatedNodes', [], null, null, 'Modules', 'TYPO3.Neos');
+
+            $this->addFlashMessage($message, '', Message::SEVERITY_WARNING, [], 1412422767);
+        }
+
+        $this->redirect('index');
     }
 
     /**
-     * Delete an asset
+     * Update the resource on an asset.
      *
-     * @param Asset $asset
+     * @param AssetInterface $asset
+     * @param FlowResource $resource
+     * @param array $options
+     * @throws InvalidArgumentValueException
      * @return void
      */
-    public function deleteAction(Asset $asset)
+    public function updateAssetResourceAction(AssetInterface $asset, FlowResource $resource, array $options = [])
     {
-        $relatedNodes = $this->getRelatedNodes($asset);
-        if (count($relatedNodes) > 0) {
-            $this->addFlashMessage('media.deleteRelatedNodes', '', Message::SEVERITY_WARNING, [], 1412422767);
+        $sourceMediaType = MediaTypes::parseMediaType($asset->getMediaType());
+        $replacementMediaType = MediaTypes::parseMediaType($resource->getMediaType());
+
+        // Prevent replacement of image, audio and video by a different mimetype because of possible rendering issues.
+        if (in_array($sourceMediaType['type'], ['image', 'audio', 'video']) && $sourceMediaType['type'] !== $replacementMediaType['type']) {
+            $this->addFlashMessage(
+                'Resources of type "%s" can only be replaced by a similar resource. Got type "%s"',
+                '',
+                Message::SEVERITY_WARNING,
+                [$sourceMediaType['type'], $resource->getMediaType()],
+                1462308179
+            );
             $this->redirect('index');
         }
 
-        // FIXME: Resources are not deleted, because we cannot be sure that the resource isn't used anywhere else.
-        $this->assetRepository->remove($asset);
-        $this->addFlashMessage('assetHasBeenDeleted', '', Message::SEVERITY_OK, [$asset->getLabel()], 1412375050);
-        $this->redirect('index');
+        parent::updateAssetResourceAction($asset, $resource, $options);
     }
 
     /**
      * Get Related Nodes for an asset
      *
-     * @param Asset $asset
+     * @param AssetInterface $asset
      * @return void
      */
-    public function relatedNodesAction(Asset $asset)
+    public function relatedNodesAction(AssetInterface $asset)
     {
         $userWorkspace = $this->userService->getPersonalWorkspace();
+
+        $usageReferences = $this->assetService->getUsageReferences($asset);
         $relatedNodes = [];
-        foreach ($this->getRelatedNodes($asset) as $relatedNodeData) {
-            $accessible = $this->domainUserService->currentUserCanReadWorkspace($relatedNodeData->getWorkspace());
-            if ($accessible) {
-                $context = $this->createContextMatchingNodeData($relatedNodeData);
-            } else {
-                $context = $this->createContentContext($userWorkspace->getName());
+        $inaccessibleRelations = [];
+
+        $existingSites = $this->siteRepository->findAll();
+
+        foreach ($usageReferences as $usage) {
+            $inaccessibleRelation = [
+                'type' => get_class($usage),
+                'usage' => $usage
+            ];
+
+            if (!$usage instanceof AssetUsageInNodeProperties) {
+                $inaccessibleRelations[] = $inaccessibleRelation;
+                continue;
             }
-            $site = $context->getCurrentSite();
-            $node = $this->nodeFactory->createFromNodeData($relatedNodeData, $context);
+
+            try {
+                $nodeType = $this->nodeTypeManager->getNodeType($usage->getNodeTypeName());
+            } catch (NodeTypeNotFoundException $e) {
+                $nodeType = null;
+            }
+            $workspace = $this->workspaceRepository->findByIdentifier($usage->getWorkspaceName());
+            $accessible = $this->domainUserService->currentUserCanReadWorkspace($workspace);
+
+            $inaccessibleRelation['nodeIdentifier'] = $usage->getNodeIdentifier();
+            $inaccessibleRelation['workspaceName'] = $usage->getWorkspaceName();
+            $inaccessibleRelation['workspace'] = $workspace;
+            $inaccessibleRelation['nodeType'] = $nodeType;
+            $inaccessibleRelation['accessible'] = $accessible;
+
+            if (!$accessible) {
+                $inaccessibleRelations[] = $inaccessibleRelation;
+                continue;
+            }
+
+            $node = $this->getNodeFrom($usage);
+            // this should actually never happen.
+            if (!$node) {
+                $inaccessibleRelations[] = $inaccessibleRelation;
+                continue;
+            }
+
             $flowQuery = new FlowQuery([$node]);
-            /** @var Node $documentNode */
             $documentNode = $flowQuery->closest('[instanceof TYPO3.Neos:Document]')->get(0);
-            $documentNodeIdentifier = $documentNode instanceof NodeInterface ? $documentNode->getIdentifier() : null;
+            // this should actually never happen, too.
+            if (!$documentNode) {
+                $inaccessibleRelations[] = $inaccessibleRelation;
+                continue;
+            }
+
+            $site = $node->getContext()->getCurrentSite();
+            foreach ($existingSites as $existingSite) {
+                /** @var Site $existingSite **/
+                $siteNodePath = '/sites/' . $existingSite->getNodeName();
+                if ($siteNodePath === $node->getPAth() || strpos($node->getPath(), $siteNodePath . '/') === 0) {
+                    $site = $existingSite;
+                }
+            }
+
             $relatedNodes[$site->getNodeName()]['site'] = $site;
-            $relatedNodes[$site->getNodeName()]['documentNodes'][$documentNodeIdentifier]['node'] = $documentNode;
-            $relatedNodes[$site->getNodeName()]['documentNodes'][$documentNodeIdentifier]['nodes'][] = [
+            $relatedNodes[$site->getNodeName()]['nodes'][] = [
                 'node' => $node,
-                'nodeData' => $relatedNodeData,
-                'contextDocumentNode' => $documentNode,
-                'accessible' => $accessible
+                'documentNode' => $documentNode
             ];
         }
 
         $this->view->assignMultiple([
+            'totalUsageCount' => count($usageReferences),
+            'nodeUsageClass' => AssetUsageInNodeProperties::class,
             'asset' => $asset,
+            'inaccessibleRelations' => $inaccessibleRelations,
             'relatedNodes' => $relatedNodes,
             'contentDimensions' => $this->contentDimensionPresetSource->getAllPresets(),
             'userWorkspace' => $userWorkspace
@@ -193,25 +271,13 @@ class AssetController extends \TYPO3\Media\Controller\AssetController
     }
 
     /**
-     * @param Asset $asset
-     * @return array
+     * @param AssetUsageInNodeProperties $assetUsage
+     * @return NodeInterface
      */
-    protected function getRelatedNodes(Asset $asset)
+    protected function getNodeFrom(AssetUsageInNodeProperties $assetUsage)
     {
-        $relationMap = [];
-        $relationMap[TypeHandling::getTypeForValue($asset)] = [$this->persistenceManager->getIdentifierByObject($asset)];
-
-        if ($asset instanceof Image) {
-            foreach ($asset->getVariants() as $variant) {
-                $type = TypeHandling::getTypeForValue($variant);
-                if (!isset($relationMap[$type])) {
-                    $relationMap[$type] = [];
-                }
-                $relationMap[$type][] = $this->persistenceManager->getIdentifierByObject($variant);
-            }
-        }
-
-        return $this->nodeDataRepository->findNodesByRelatedEntities($relationMap);
+        $context = $this->_contextFactory->create(['workspaceName' => $assetUsage->getWorkspaceName(), 'dimensions' => $assetUsage->getDimensionValues(), 'invisibleContentShown' => true, 'removedContentShown' => true]);
+        return $context->getNodeByIdentifier($assetUsage->getNodeIdentifier());
     }
 
     /**

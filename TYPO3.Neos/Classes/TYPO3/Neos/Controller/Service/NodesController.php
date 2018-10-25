@@ -22,9 +22,9 @@ use TYPO3\Neos\Domain\Service\ContentContext;
 use TYPO3\Neos\Domain\Service\NodeSearchServiceInterface;
 use TYPO3\Neos\Domain\Service\SiteService;
 use TYPO3\Neos\View\Service\NodeJsonView;
+use TYPO3\Neos\Service\Mapping\NodePropertyConverterService;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Model\NodeType;
-use TYPO3\TYPO3CR\Domain\Service\Context;
 use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
 use TYPO3\TYPO3CR\Domain\Utility\NodePaths;
 
@@ -55,6 +55,12 @@ class NodesController extends ActionController
      * @var PropertyMapper
      */
     protected $propertyMapper;
+
+    /**
+     * @Flow\Inject
+     * @var NodePropertyConverterService
+     */
+    protected $nodePropertyConverterService;
 
     /**
      * @var array
@@ -132,18 +138,16 @@ class NodesController extends ActionController
             $this->throwStatus(404);
         }
 
-        $convertedProperties = array();
-        foreach ($node->getProperties() as $propertyName => $propertyValue) {
-            try {
-                $convertedProperties[$propertyName] = $this->propertyMapper->convert($propertyValue, 'string');
-            } catch (Exception $exception) {
-                $convertedProperties[$propertyName] = '';
+        $convertedNodeProperties = $this->nodePropertyConverterService->getPropertiesArray($node);
+        array_walk($convertedNodeProperties, function (&$value) {
+            if (is_array($value)) {
+                $value = json_encode($value);
             }
-        }
+        });
 
         $this->view->assignMultiple(array(
             'node' => $node,
-            'convertedNodeProperties' => $convertedProperties
+            'convertedNodeProperties' => $convertedNodeProperties
         ));
     }
 

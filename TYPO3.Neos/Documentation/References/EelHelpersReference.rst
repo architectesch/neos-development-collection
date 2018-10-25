@@ -3,7 +3,7 @@
 Eel Helpers Reference
 =====================
 
-This reference was automatically generated from code on 2016-06-14
+This reference was automatically generated from code on 2016-06-07
 
 
 .. _`Eel Helpers Reference: Array`:
@@ -46,6 +46,10 @@ Array.indexOf(array, searchElement, fromIndex)
 * ``array`` (array)
 * ``searchElement`` (mixed)
 * ``fromIndex`` (integer, *optional*)
+
+Check if an array contains a value::
+
+    Array.indexOf(myArray, 'myValue') >= 0
 
 **Return** (mixed)
 

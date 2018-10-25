@@ -872,6 +872,42 @@ class ParserTest extends UnitTestCase
     }
 
     /**
+     * Checks if identifiers starting with digits are parsed correctly
+     *
+     * @test
+     */
+    public function parserCorrectlyParsesFixture21()
+    {
+        $sourceCode = $this->readTypoScriptFixture('ParserTestTypoScriptFixture21');
+
+        $expectedParseTree = array(
+            '__prototypes' => array(
+                '4Testing:Example' => array(
+                    'someValue' => true
+                )
+            ),
+            'somepath' => array(
+                '101Neos' => 'A string value',
+            ),
+        );
+
+        $actualParseTree = $this->parser->parse($sourceCode);
+        $this->assertSame($expectedParseTree, $actualParseTree, 'The parse tree was not as expected after parsing fixture 21.');
+    }
+
+    /**
+     * Checks if really long strings are parsed correctly
+     *
+     * @test
+     */
+    public function parserCorrectlyParsesFixture22()
+    {
+        $sourceCode = $this->readTypoScriptFixture('ParserTestTypoScriptFixture22');
+        $actualParseTree = $this->parser->parse($sourceCode);
+        $this->assertArrayHasKey('longString', $actualParseTree);
+    }
+
+    /**
      * Checks if comments in comments are parsed correctly
      *
      * @test
